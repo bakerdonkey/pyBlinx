@@ -1,6 +1,7 @@
 from tkinter import filedialog
 from tkinter import Tk
 import struct
+import argparse
 
 class Extractor:
     def __init__(self, vert_path=None, tri_path=None, obj_path=None, bin_dir='./') :
@@ -16,6 +17,9 @@ class Extractor:
             param5: path to binary directory
         """
         #TODO: The methodology behind this may be a no-no in python, look into alternatives
+        self.bin_dir = bin_dir
+        self.verts = []
+        self.tris = []
 
         if vert_path is None :
             self.vert_path = self.__tk_load_bin('vert')
@@ -28,15 +32,13 @@ class Extractor:
             self.tri_path = tri_path
 
         if obj_path is None :
+            print('here')
             self.obj_path = ''
         else :
             self.obj_path = obj_path
 
-        self.verts = []
-        self.tris = []
-        self.bin_dir = bin_dir
 
-    def read_verts(self) :
+    def read_verts(self, start_off=0x0000) :
         #TODO: implement starting offset
         """
         Parses the list of raw floats delimited by some unknown value.
@@ -50,6 +52,7 @@ class Extractor:
 
         v = []
         with open(self.vert_path, 'rb') as f :
+            f.seek(start_off)
             while True :
                 word = f.read(16)
                 if len(word) < 4 :
@@ -110,9 +113,10 @@ class Extractor:
         verts = self.verts
         tris = self.tris
 
-        if not self.obj_path : self.obj_path = self.__tk_save_obj
+        if not self.obj_path : self.obj_path = self.__tk_save_obj()
 
 
+            
         if self.obj_path == '' :
             print('Invalid save path')
             return
@@ -188,7 +192,14 @@ class Extractor:
 
 
 def main() :
-    extract = Extractor()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-b', '--bin', help='Provide binary directory', type=str)
+    parser.add_argument('-v', '--vert', help='Provide vert list binary', type=str)
+    parser.add_argument('-t', '--tri', help='Provide triangle array binary', type=str)
+    parser.add_argument('-o', '--obj', help='Provide output path', type=str)
+    args = parser.parse_args()
+
+    extract = Extractor(vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
     extract.read_verts()
     extract.read_tris_slide()
