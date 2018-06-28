@@ -7,7 +7,7 @@ class Extractor:
     def __init__(self, vert_path=None, tri_path=None, obj_path=None, bin_dir='./') :
         """
         Construct extractor. If paths to verts and tris are passed in, it use them. Otherwise
-        loads from Tkinter filedialog. If 
+        loads from Tkinter filedialog.
 
         Args:
             param1: self instance reference
@@ -124,7 +124,7 @@ class Extractor:
         with open(self.obj_path, 'w+') as f :
             
             if not verts :
-                print('No verts!')
+                print('No verts to write!')
             
             else :
                 print('Extracting verts...')
@@ -134,7 +134,7 @@ class Extractor:
                 print('Done')
             
             if not tris :
-                print('No tris!')
+                print('No tris to write!')
 
             else :
                 print('Extracting tris...')
@@ -202,7 +202,7 @@ def main() :
     extract = Extractor(vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
     extract.read_verts()
-    extract.read_tris_slide()
+    #extract.read_tris_slide()
     extract.write_obj()
 
 
