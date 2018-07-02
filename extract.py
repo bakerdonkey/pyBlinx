@@ -7,48 +7,38 @@ import time
 
 
 class Extractor:
-    def __init__(self, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir='./') :
+    def __init__(self, mode=False, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
         """
-        Construct extractor. If paths to verts and tris are passed in, it use them. Otherwise
-        loads from Tkinter filedialog.
-
+        Construct extractor. Handle mode assignment. Assign chunk, vert, tri files from args or tkinter load helpers. 
         Args:
             param1: self instance reference
-            param2: path to chunk file
-            param3: path to vert file
-            param4: path to tri file
-            param5: path to proposed obj output
-            param6: path to binary directory
+            param2: mode of operation
+            param3: path to chunk file
+            param4: path to vert file
+            param5: path to tri file
+            param6: path to proposed obj output
+            param7: path to binary directory
         """
-        #TODO: The methodology behind this may be a no-no in python, look into alternatives
-        self.bin_dir = bin_dir
+        self.mode = mode
+
+        self.bin_dir = bin_dir if bin_dir is not None else './'
+
+        if not mode :
+            self.chunk_path = chunk_path if chunk_path is not None else self.__tk_load_bin('chunk')
+        
+        else :
+            self.vert_path = vert_path if vert_path is not None else self.__tk_load_bin('vert')
+            self.tri_path = tri_path if tri_path is not None else self.__tk_load_bin('tri')
+        
+        self.obj_path = obj_path if obj_path is not None else ''        # Do not use tk to create obj path until file is verified to work
+
+
+
         self.verts = []
-        self.tris = []
         self.tristrips = []
 
-        if chunk_path is None :
-            self.chunk_path = self.__tk_load_bin('chunk')
-        else :
-            self.chunk_path = chunk_path
-
-        if vert_path is None :
-            self.vert_path = self.__tk_load_bin('vert')
-        else :
-            self.vert_path = vert_path
-
-        if tri_path is None :
-            self.tri_path = self.__tk_load_bin('tri')
-        else :
-            self.tri_path = tri_path
-
-        if obj_path is None :
-            print('here')
-            self.obj_path = ''
-        else :
-            self.obj_path = obj_path
-
-    #TODO: Implement chunk file parsing
-
+        # Depricated:
+        self.tris = []   
 
     def read_verts(self, start_off=0x0000) :
         """
@@ -67,44 +57,23 @@ class Extractor:
             f.seek(start_off)
             while True :
                 raw_word = f.read(12)
-                f.seek(4)
-                if raw_word[:4] ==  b'\xff\x00\x00\x00' :                 # Check for termination number or EOF
+                if raw_word[:4] ==  b'\xff\x00\x00\x00' :                 # Check for escape symbol or EOF TODO: verify and debug
+#                    print('Found vert escape symbol')
                     break
 
-                elif len(raw_word) < 4 :
+                elif len(raw_word) < 12 :
+#                    print('Found vert EOF')
                     break
-
-                word = struct.unpack('fff', raw_word)
-                word = list(word)
+                    
+                f.seek(4, 1)                                             # Seek relative to current iterator
+                word = list(struct.unpack('fff', raw_word))
                 v.append(word)
+
+
                 print(word)
 
         self.verts = v
 
-
-    def old_read_verts(self) :
-        #TODO: implement starting offset
-        """
-        Parses the list of raw floats delimited by some unknown value.
-        Args:
-            param1: self instance reference
-
-        Returns: 
-            A list of lists containing local x y z cords
-        """
-
-        v = []
-        with open(self.vert_path, 'rb') as f :
-           while True :
-                word = f.read(16)
-                if len(word) < 4 :
-                    break
-
-                word = struct.unpack('fffi', word)
-                word = list(word)
-                v.append(word)
-
-        self.verts = v
 
     def read_tristrips_complex(self, start_off=0x0000) :
         '''
@@ -145,7 +114,32 @@ class Extractor:
                 
         self.tristrips = t
 
+    # Depricated
+    def old_read_verts(self) :
+        #TODO: implement starting offset
+        """
+        Parses the list of raw floats delimited by some unknown value.
+        Args:
+            param1: self instance reference
 
+        Returns: 
+            A list of lists containing local x y z cords
+        """
+
+        v = []
+        with open(self.vert_path, 'rb') as f :
+           while True :
+                word = f.read(16)
+                if len(word) < 4 :
+                    break
+
+                word = struct.unpack('fffi', word)
+                word = list(word)
+                v.append(word)
+
+        self.verts = v
+        
+    # Depricated!
     def read_tris_slide(self, start_off=0x0000) :
         """
         Parses a triangle array into a list. Strips invalid and incorrect triangles.
@@ -308,6 +302,7 @@ class Extractor:
 
 def main() :
     parser = argparse.ArgumentParser()
+    parser.add_argument('mode', help='Mode of operation - chunk=0 (DO NOT USE!), vert/tri=1', type=bool)
     parser.add_argument('-c', '--chunk', help='Path to chunk file', type=str)
     parser.add_argument('-vo', '--voffset', help='Vertex offset in chunk file (in hex)', type=lambda x: int(x,0))
     parser.add_argument('-to', '--toffset', help='Triangle offset in chunk file (in hex)', type=lambda x: int(x,0))
@@ -317,13 +312,21 @@ def main() :
     parser.add_argument('-b', '--bin', help='Path to binary directory', type=str)
     args = parser.parse_args()
 
-    extract = Extractor(chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
+    extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
     voffset, toffset = 0, 0
 
-    if args.voffset is None : voffset = 0x0000
-    if args.toffset is None : toffset = 0x0000
+    if args.voffset is None : 
+        voffset = 0x0000 
+    else : 
+        voffset = args.voffset
 
-    extract.old_read_verts()
+
+    if args.toffset is None : 
+        toffset = 0x0000
+    else : 
+        toffset = args.toffset
+
+    extract.read_verts(start_off=voffset)
     extract.read_tristrips_complex(start_off=toffset)
     extract.write_verts()
     extract.write_tristrips()
