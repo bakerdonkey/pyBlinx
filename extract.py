@@ -3,6 +3,9 @@ from tkinter import Tk
 import struct
 import argparse
 
+import time
+
+
 class Extractor:
     def __init__(self, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir='./') :
         """
@@ -44,6 +47,8 @@ class Extractor:
         else :
             self.obj_path = obj_path
 
+    #TODO: Implement chunk file parsing
+
 
     def read_verts(self, start_off=0x0000) :
         """
@@ -57,15 +62,45 @@ class Extractor:
         """
 
         v = []
+        raw_word = b''
         with open(self.vert_path, 'rb') as f :
             f.seek(start_off)
             while True :
-                word = f.read(12)
-                if word[:4] ==  b'\xff\x00\x00\x00' or len(word) < 12 :                 # Check for termination number or EOF
+                raw_word = f.read(12)
+                f.seek(4)
+                if raw_word[:4] ==  b'\xff\x00\x00\x00' :                 # Check for termination number or EOF
                     break
 
-                f.seek(4)
-                word = struct.unpack('fff', word)
+                elif len(raw_word) < 4 :
+                    break
+
+                word = struct.unpack('fff', raw_word)
+                word = list(word)
+                v.append(word)
+                print(word)
+
+        self.verts = v
+
+
+    def old_read_verts(self) :
+        #TODO: implement starting offset
+        """
+        Parses the list of raw floats delimited by some unknown value.
+        Args:
+            param1: self instance reference
+
+        Returns: 
+            A list of lists containing local x y z cords
+        """
+
+        v = []
+        with open(self.vert_path, 'rb') as f :
+           while True :
+                word = f.read(16)
+                if len(word) < 4 :
+                    break
+
+                word = struct.unpack('fffi', word)
                 word = list(word)
                 v.append(word)
 
@@ -90,6 +125,9 @@ class Extractor:
                 size = abs(struct.unpack('h', size_buff)[0])
                 points = []
                 for j in range(size) :
+
+                    print(str(i) + ' | ' + str(j))
+
                     data_buff = f.read(6)
                     data = list(struct.unpack('hhh', data_buff))
                     data = [w+1 for w in data]
@@ -158,7 +196,6 @@ class Extractor:
                 for v in verts :
                     ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
                     f.write(ln)
-
                 print('Done')
 
 
@@ -166,7 +203,7 @@ class Extractor:
     def write_tristrips(self) :
         tristrips = self.tristrips
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
-        with open(self.obj_path, 'w+') as f :
+        with open(self.obj_path, 'a+') as f :
             if not tristrips :
                 print ('No tristrips to write!')
 
@@ -204,7 +241,7 @@ class Extractor:
                 print('Extracting verts...')
                 for v in verts :
                     ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
-                    f.write(ln)
+                    f.write(ln, end='')
                 print('Done')
             
             if not tris :
@@ -281,15 +318,13 @@ def main() :
     args = parser.parse_args()
 
     extract = Extractor(chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
+    voffset, toffset = 0, 0
 
-    if args.voffset is None :
-        voffset = 0x0000
-    if args.toffset is None :
-        toffset = 0x0000
+    if args.voffset is None : voffset = 0x0000
+    if args.toffset is None : toffset = 0x0000
 
-    extract.read_verts(start_off=voffset)
+    extract.old_read_verts()
     extract.read_tristrips_complex(start_off=toffset)
-    
     extract.write_verts()
     extract.write_tristrips()
 
