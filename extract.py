@@ -68,10 +68,6 @@ class Extractor:
                 f.seek(4, 1)                                             # Seek relative to current iterator
                 word = list(struct.unpack('fff', raw_word))
                 v.append(word)
-
-
-                print(word)
-
         self.verts = v
 
 
@@ -94,9 +90,6 @@ class Extractor:
                 size = abs(struct.unpack('h', size_buff)[0])
                 points = []
                 for j in range(size) :
-
-                    print(str(i) + ' | ' + str(j))
-
                     data_buff = f.read(6)
                     data = list(struct.unpack('hhh', data_buff))
                     data = [w+1 for w in data]
@@ -138,7 +131,7 @@ class Extractor:
                 v.append(word)
 
         self.verts = v
-        
+
     # Depricated!
     def read_tris_slide(self, start_off=0x0000) :
         """
@@ -181,6 +174,7 @@ class Extractor:
 
     def write_verts(self) :
         verts = self.verts
+        if not self.obj_path : self.obj_path = self.__tk_save_obj()
 
         with open(self.obj_path, 'w+') as f :
             if not verts :
@@ -197,6 +191,7 @@ class Extractor:
     def write_tristrips(self) :
         tristrips = self.tristrips
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
+
         with open(self.obj_path, 'a+') as f :
             if not tristrips :
                 print ('No tristrips to write!')
@@ -313,18 +308,9 @@ def main() :
     args = parser.parse_args()
 
     extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
-    voffset, toffset = 0, 0
 
-    if args.voffset is None : 
-        voffset = 0x0000 
-    else : 
-        voffset = args.voffset
-
-
-    if args.toffset is None : 
-        toffset = 0x0000
-    else : 
-        toffset = args.toffset
+    voffset = args.voffset if args.voffset is not None else 0x0000
+    toffset = args.toffset if args.toffset is not None else 0x0000
 
     extract.read_verts(start_off=voffset)
     extract.read_tristrips_complex(start_off=toffset)
