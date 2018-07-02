@@ -69,24 +69,41 @@ class Extractor:
         '''
         Starting offset after 0x7f7fffff
         '''
-        size_buff, data_buff = ''
+        size_buff = ''
+        data_buff = ''
         t = []
-        terminate = False
         with open(self.tri_path, 'rb') as f :
-            f.seek(start_off + 0x000a)
-            while(not terminate) :
+            f.seek(start_off + 0x0008)
+            tristrip_count = struct.unpack('h', f.read(2))[0]
+            for i in range(tristrip_count) :
+                print()
                 size_buff = f.read(2)
-                size = struct.unpack('h', size_buff)[0]
+                if len(size_buff) < 2 :
+                    break
+                    
+                size = abs(struct.unpack('h', size_buff)[0])
                 points = []
-                for i in range(size) :
+                for j in range(size) :
+
+                    print(str(i) + ' | ' + str(size) + ' | ' + str(j))
+
                     data_buff = f.read(6)
                     data = list(struct.unpack('hhh', data_buff))
                     data = [w+1 for w in data]
                     point = tuple(data)
                     points.append(point)
-                trilist = (size, points)
-                t.append(trilist)
 
+                t.append(points)
+
+                if size == 255 :
+                    if struct.unpack('h', f.read(2))[0] == 0 :
+                        print('here')
+                        break
+
+                    else :
+                        f.seek(-2)
+                
+        self.tristrips = t
 
 
     def read_tris_slide(self, start_off=0x0000) :
@@ -128,7 +145,18 @@ class Extractor:
 
         self.tris = t
 
+    def write_tristrips(self) :
+        tristrips = self.tristrips
+        if not self.obj_path : self.obj_path = self.__tk_save_obj()
 
+        with open(self.obj_path, 'w+') as f :
+            if not tristrips :
+                print ('No tristrips to write!')
+            else :
+                for t in tristrips :
+                    for i in range(len(t)-2) :
+                        ln = 'f {v0} {v1} {v2}\n'.format(v0=t[i][0], v1=t[i+1][0], v2=t[i+2][0])
+                        f.write(ln)
 
     def write_obj(self) :
         """
@@ -226,9 +254,9 @@ def main() :
 
     extract = Extractor(vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    extract.read_verts()
-    #extract.read_tris_slide()
-    extract.write_obj()
+    #extract.read_verts()
+    extract.read_tristrips_complex()
+    extract.write_tristrips()
 
 
 if __name__ == '__main__' :
