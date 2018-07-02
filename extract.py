@@ -20,6 +20,7 @@ class Extractor:
         self.bin_dir = bin_dir
         self.verts = []
         self.tris = []
+        self.tristrips = []
 
         if vert_path is None :
             self.vert_path = self.__tk_load_bin('vert')
@@ -39,7 +40,6 @@ class Extractor:
 
 
     def read_verts(self, start_off=0x0000) :
-        #TODO: implement starting offset
         """
         Parses the list of raw floats delimited by some unknown value.
 
@@ -54,15 +54,40 @@ class Extractor:
         with open(self.vert_path, 'rb') as f :
             f.seek(start_off)
             while True :
-                word = f.read(16)
+                word = f.read(12)
+                f.seek(4)
                 if len(word) < 4 :
                     break
 
-                word = struct.unpack('fffi', word)
+                word = struct.unpack('fff', word)
                 word = list(word)
                 v.append(word)
 
         self.verts = v
+
+    def read_tristrips_complex(self, start_off=0x0000) :
+        '''
+        Starting offset after 0x7f7fffff
+        '''
+        size_buff, data_buff = ''
+        t = []
+        terminate = False
+        with open(self.tri_path, 'rb') as f :
+            f.seek(start_off + 0x000a)
+            while(not terminate) :
+                size_buff = f.read(2)
+                size = struct.unpack('h', size_buff)[0]
+                points = []
+                for i in range(size) :
+                    data_buff = f.read(6)
+                    data = list(struct.unpack('hhh', data_buff))
+                    data = [w+1 for w in data]
+                    point = tuple(data)
+                    points.append(point)
+                trilist = (size, points)
+                t.append(trilist)
+
+
 
     def read_tris_slide(self, start_off=0x0000) :
         """
