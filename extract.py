@@ -4,23 +4,29 @@ import struct
 import argparse
 
 class Extractor:
-    def __init__(self, vert_path=None, tri_path=None, obj_path=None, bin_dir='./') :
+    def __init__(self, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir='./') :
         """
         Construct extractor. If paths to verts and tris are passed in, it use them. Otherwise
         loads from Tkinter filedialog.
 
         Args:
             param1: self instance reference
-            param2: path to vert file
-            param3: path to tri file
-            param4: path to proposed obj output
-            param5: path to binary directory
+            param2: path to chunk file
+            param3: path to vert file
+            param4: path to tri file
+            param5: path to proposed obj output
+            param6: path to binary directory
         """
         #TODO: The methodology behind this may be a no-no in python, look into alternatives
         self.bin_dir = bin_dir
         self.verts = []
         self.tris = []
         self.tristrips = []
+
+        if chunk_path is None :
+            self.chunk_path = self.__tk_load_bin('chunk')
+        else :
+            self.chunk_path = chunk_path
 
         if vert_path is None :
             self.vert_path = self.__tk_load_bin('vert')
@@ -55,10 +61,10 @@ class Extractor:
             f.seek(start_off)
             while True :
                 word = f.read(12)
-                f.seek(4)
-                if len(word) < 4 :
+                if word[:4] ==  b'\xff\x00\x00\x00' or len(word) < 12 :                 # Check for termination number or EOF
                     break
 
+                f.seek(4)
                 word = struct.unpack('fff', word)
                 word = list(word)
                 v.append(word)
@@ -84,9 +90,6 @@ class Extractor:
                 size = abs(struct.unpack('h', size_buff)[0])
                 points = []
                 for j in range(size) :
-
-                    print(str(i) + ' | ' + str(size) + ' | ' + str(j))
-
                     data_buff = f.read(6)
                     data = list(struct.unpack('hhh', data_buff))
                     data = [w+1 for w in data]
@@ -94,7 +97,6 @@ class Extractor:
                     points.append(point)
 
                 t.append(points)
-
                 if size == 255 :
                     if struct.unpack('h', f.read(2))[0] == 0 :
                         print('here')
@@ -145,18 +147,37 @@ class Extractor:
 
         self.tris = t
 
+    def write_verts(self) :
+        verts = self.verts
+
+        with open(self.obj_path, 'w+') as f :
+            if not verts :
+                print('No verts to write')
+            else :
+                print('Extracting verts...', end='')
+                for v in verts :
+                    ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
+                    f.write(ln)
+
+                print('Done')
+
+
+
     def write_tristrips(self) :
         tristrips = self.tristrips
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
-
         with open(self.obj_path, 'w+') as f :
             if not tristrips :
                 print ('No tristrips to write!')
+
             else :
+                print('Extracting tristrips...', end='')
                 for t in tristrips :
                     for i in range(len(t)-2) :
                         ln = 'f {v0} {v1} {v2}\n'.format(v0=t[i][0], v1=t[i+1][0], v2=t[i+2][0])
                         f.write(ln)
+
+                print('Done')
 
     def write_obj(self) :
         """
@@ -214,7 +235,11 @@ class Extractor:
         in_path = ''
 
         # TODO: handle invalid path assignment
-        if filetype == 'vert' :
+        
+        if filetype == 'chunk' :
+            in_path = filedialog.askopenfilename(initialdir=self.bin_dir, title="Select Chunk file")
+
+        elif filetype == 'vert' :
             in_path = filedialog.askopenfilename(initialdir=self.bin_dir, title="Select Vert file")
 
         elif filetype == 'tri' :
@@ -246,16 +271,26 @@ class Extractor:
 
 def main() :
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--bin', help='Provide binary directory', type=str)
-    parser.add_argument('-v', '--vert', help='Provide vert list binary', type=str)
-    parser.add_argument('-t', '--tri', help='Provide triangle array binary', type=str)
-    parser.add_argument('-o', '--obj', help='Provide output path', type=str)
+    parser.add_argument('-c', '--chunk', help='Path to chunk file', type=str)
+    parser.add_argument('-vo', '--voffset', help='Vertex offset in chunk file (in hex)', type=lambda x: int(x,0))
+    parser.add_argument('-to', '--toffset', help='Triangle offset in chunk file (in hex)', type=lambda x: int(x,0))
+    parser.add_argument('-v', '--vert', help='Path to vertex list file', type=str)
+    parser.add_argument('-t', '--tri', help='Path to triangle list file', type=str)
+    parser.add_argument('-o', '--obj', help='Path to output obj file', type=str)
+    parser.add_argument('-b', '--bin', help='Path to binary directory', type=str)
     args = parser.parse_args()
 
-    extract = Extractor(vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
+    extract = Extractor(chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    #extract.read_verts()
-    extract.read_tristrips_complex()
+    if args.voffset is None :
+        voffset = 0x0000
+    if args.toffset is None :
+        toffset = 0x0000
+
+    extract.read_verts(start_off=voffset)
+    extract.read_tristrips_complex(start_off=toffset)
+    
+    extract.write_verts()
     extract.write_tristrips()
 
 
