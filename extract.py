@@ -36,6 +36,7 @@ class Extractor:
 
         self.verts = []
         self.tristrips = []
+        self.triparts = []
 
         # Depricated:
         self.tris = []   
@@ -72,180 +73,110 @@ class Extractor:
                 v.append(word)
         self.verts = v
 
-
-    def read_tristrips_complex(self, start_off=0x0000) :
+    def read_triparts_complex(self, start_off=0x0000) :
         '''
         Starting offset after 0x7f7fffff
         '''
-        size_buff = ''
-        data_buff = ''
         t = []
         path = self.tri_path if self.mode is True else self.chunk_path
         with open(path, 'rb') as f :
-            f.seek(start_off + 0x0008)
-            tristrip_count = struct.unpack('h', f.read(2))[0]
-            for i in range(tristrip_count) :
-                print()
-                size_buff = f.read(2)
-                if len(size_buff) < 2 :
-                    break
-                    
-                size = abs(struct.unpack('h', size_buff)[0])
-                points = []
-                for j in range(size) :
-                    data_buff = f.read(6)
-                    data = list(struct.unpack('hhh', data_buff))
-                    data = [w+1 for w in data]
-                    point = tuple(data)
-                    points.append(point)
+            f.seek(start_off + 0x0004)
+            part_count = struct.unpack('h', f.read(2))[0]
+            print('Total triparts: {x}'.format(x=part_count))
+            f.seek(14, 1)
+            for _ in range(part_count) :
+                print('Reading tripart {x}'.format(x=_))
+                t.append(self.read_tristrips_complex(file=f))
+        self.triparts = t
 
-                t.append(points)
-                if size == 255 :
-                    if struct.unpack('h', f.read(2))[0] == 0 :
-                        print('here')
-                        break
-
-                    else :
-                        f.seek(-2)
-                
-        self.tristrips = t
-
-    # Depricated
-    def old_read_verts(self) :
-        #TODO: implement starting offset
-        """
-        Parses the list of raw floats delimited by some unknown value.
-        Args:
-            param1: self instance reference
-
-        Returns: 
-            A list of lists containing local x y z cords
-        """
-        v = []
-
-        with open(self.vert_path, 'rb') as f :
-           while True :
-                word = f.read(16)
-                if len(word) < 4 :
-                    break
-
-                word = struct.unpack('fffi', word)
-                word = list(word)
-                v.append(word)
-
-        self.verts = v
-
-    # Depricated!
-    def read_tris_slide(self, start_off=0x0000) :
-        """
-        Parses a triangle array into a list. Strips invalid and incorrect triangles.
-
-        Args:
-            param1: self instance reference
-            param2: starting offset for triangle array, after 0xffffff05
-
-        Returns:
-            A list containing tuples of vertex indices
-        """
-
-        data = ''
+    def read_tristrips_complex(self, start_off=0x0000, file=None) :
+        size_buff = ''
+        data_buff = ''
         t = []
-        with open(self.tri_path, 'rb') as f :
-            f.seek(start_off + 0x0002)          # accounts for first unknown short
-            size = struct.unpack('h', f.read(2))[0]
-            data = f.read(size * 2)
 
-        if data == '' :
-            print('Could not parse tris - empty data string!')
-            return
+        if file is None :    
+            path = self.tri_path if self.mode is True else self.chunk_path
+            f = open(path, 'rb')
+        else :
+            f = file
         
+        f.seek(start_off + 0x0008, 1)
+        tristrip_count = struct.unpack('h', f.read(2))[0]
+        print('Number of tristrips: {x}'.format(x=tristrip_count))
+        for i in range(tristrip_count) :
+            size_buff = f.read(2)
+            if len(size_buff) < 2 :
+                break
+                
+            size = abs(struct.unpack('h', size_buff)[0])
+            points = []
+            for j in range(size) :
+                data_buff = f.read(6)
+                data = list(struct.unpack('hhh', data_buff))
+                data = [w+1 for w in data]
+                point = tuple(data)
+                points.append(point)
 
-        #TODO: Clean up loop. This is bad since i is immutable. Use iterator or something
-        window = data[0: 6]
-        i = 2   
-        while i + 6 <= len(data) :
-#           print(str(i) + ' ' + str(window))
-            window = data[i: i+6]
-            word_t = struct.unpack('hhh', window)
-            word_l = list(word_t)
-            word = [w+1 for w in word_l]
-            t.append(word)
-            i += 2
-            # TODO: Handle invalid and incorrect tris 
+            t.append(points)
+            if size == 255 :
+                if struct.unpack('h', f.read(2))[0] == 0 :
+                    break
 
-        self.tris = t
+                else :
+                    f.seek(-2, 1)
+
+            print('Tristrip {i} size {s}: \n{x}'.format(i=i, s=size, x=points))
+
+        if file is None : f.close()
+
+        #self.tristrips = t
+        return t
 
     def write_verts(self) :
         verts = self.verts
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
-
         with open(self.obj_path, 'w+') as f :
             if not verts :
                 print('No verts to write')
             else :
-                print('Extracting verts...', end='')
+                print('Writing verts...', end='')
                 for v in verts :
                     ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
                     f.write(ln)
                 print('Done')
 
 
-
-    def write_tristrips(self) :
-        tristrips = self.tristrips
+    def write_triparts(self) :
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
-
         with open(self.obj_path, 'a+') as f :
-            if not tristrips :
-                print ('No tristrips to write!')
-
-            else :
-                print('Extracting tristrips...', end='')
-                for t in tristrips :
-                    for i in range(len(t)-2) :
-                        ln = 'f {v0} {v1} {v2}\n'.format(v0=t[i][0], v1=t[i+1][0], v2=t[i+2][0])
-                        f.write(ln)
-
-                print('Done')
-
-    def write_obj(self) :
-        """
-        Creates a Wavefront obj file that contains the vertex and triangle list.
-        """
-
-        verts = self.verts
-        tris = self.tris
-
-        if not self.obj_path : self.obj_path = self.__tk_save_obj()
+            i = 0
+            for t in self.triparts :
+                f.write('#tripart {x}\n'.format(x=i))
+                self.write_tristrips(cur_tristrips=t, file=f, i=i)
+                i += 1
 
 
-            
-        if self.obj_path == '' :
-            print('Invalid save path')
-            return
+    def write_tristrips(self, cur_tristrips=None, file=None, i=0) :
+        
+        tristrips = cur_tristrips if cur_tristrips is not None else self.tristrips
 
-        with open(self.obj_path, 'w+') as f :
-            
-            if not verts :
-                print('No verts to write!')
-            
-            else :
-                print('Extracting verts...')
-                for v in verts :
-                    ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
-                    f.write(ln, end='')
-                print('Done')
-            
-            if not tris :
-                print('No tris to write!')
+        if file is None :
+            if not self.obj_path : self.obj_path = self.__tk_save_obj()
+            f = open(self.obj_path, 'a+')
+        else :
+            f = file
+        
 
-            else :
-                print('Extracting tris...')
-                for t in tris :
-                    ln = 'f {i0} {i1} {i2}\n'.format(i0=t[0], i1=t[1], i2=t[2])
-                    f.write(ln)
-                print('Done')
 
+        print('Writing tristrips in part {x}... '.format(x=i), end='')
+        for t in tristrips :
+            for j in range(len(t)-2) :
+                ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                f.write(ln)
+
+        print('Done')
+
+        if file is None : f.close()
 
     def __tk_load_bin(self, filetype) :
         """
@@ -297,6 +228,106 @@ class Extractor:
         out_path = filedialog.asksaveasfilename(initialdir=self.bin_dir, defaultextension='.obj', title="Save as obj")
         return out_path
 
+    # Depricated: 
+    def write_obj(self) :
+        """
+        Creates a Wavefront obj file that contains the vertex and triangle list.
+        """
+
+        verts = self.verts
+        tris = self.tris
+
+        if not self.obj_path : self.obj_path = self.__tk_save_obj()
+
+
+            
+        if self.obj_path == '' :
+            print('Invalid save path')
+            return
+
+        with open(self.obj_path, 'w+') as f :
+            
+            if not verts :
+                print('No verts to write!')
+            
+            else :
+                print('Extracting verts...')
+                for v in verts :
+                    ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
+                    f.write(ln, end='')
+                print('Done')
+            
+            if not tris :
+                print('No tris to write!')
+
+            else :
+                print('Extracting tris...')
+                for t in tris :
+                    ln = 'f {i0} {i1} {i2}\n'.format(i0=t[0], i1=t[1], i2=t[2])
+                    f.write(ln)
+                print('Done')
+    def old_read_verts(self) :
+        #TODO: implement starting offset
+        """
+        Parses the list of raw floats delimited by some unknown value.
+        Args:
+            param1: self instance reference
+
+        Returns: 
+            A list of lists containing local x y z cords
+        """
+        v = []
+
+        with open(self.vert_path, 'rb') as f :
+           while True :
+                word = f.read(16)
+                if len(word) < 4 :
+                    break
+
+                word = struct.unpack('fffi', word)
+                word = list(word)
+                v.append(word)
+
+        self.verts = v
+    def read_tris_slide(self, start_off=0x0000) :
+        """
+        Parses a triangle array into a list. Strips invalid and incorrect triangles.
+
+        Args:
+            param1: self instance reference
+            param2: starting offset for triangle array, after 0xffffff05
+
+        Returns:
+            A list containing tuples of vertex indices
+        """
+
+        data = ''
+        t = []
+        with open(self.tri_path, 'rb') as f :
+            f.seek(start_off + 0x0002)          # accounts for first unknown short
+            size = struct.unpack('h', f.read(2))[0]
+            data = f.read(size * 2)
+
+        if data == '' :
+            print('Could not parse tris - empty data string!')
+            return
+        
+
+        #TODO: Clean up loop. This is bad since i is immutable. Use iterator or something
+        window = data[0: 6]
+        i = 2   
+        while i + 6 <= len(data) :
+            window = data[i: i+6]
+            word_t = struct.unpack('hhh', window)
+            word_l = list(word_t)
+            word = [w+1 for w in word_l]
+            t.append(word)
+            i += 2
+            # TODO: Handle invalid and incorrect tris 
+
+        self.tris = t
+
+
 def main() :
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help='Mode of operation - chunk=0 (DO NOT USE!), vert/tri=1', type=bool)
@@ -317,9 +348,10 @@ def main() :
 
 
     extract.read_verts(start_off=voffset)
-    extract.read_tristrips_complex(start_off=toffset)
+    #extract.read_tristrips_complex(start_off=toffset)
+    extract.read_triparts_complex(start_off=toffset)
     extract.write_verts()
-    extract.write_tristrips()
+    extract.write_triparts()
 
 
 if __name__ == '__main__' :
