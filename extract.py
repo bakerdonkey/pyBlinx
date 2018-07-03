@@ -52,8 +52,10 @@ class Extractor:
         """
 
         v = []
+
+        path = self.vert_path if self.mode is True else self.chunk_path
         raw_word = b''
-        with open(self.vert_path, 'rb') as f :
+        with open(path, 'rb') as f :
             f.seek(start_off)
             while True :
                 raw_word = f.read(12)
@@ -78,7 +80,8 @@ class Extractor:
         size_buff = ''
         data_buff = ''
         t = []
-        with open(self.tri_path, 'rb') as f :
+        path = self.tri_path if self.mode is True else self.chunk_path
+        with open(path, 'rb') as f :
             f.seek(start_off + 0x0008)
             tristrip_count = struct.unpack('h', f.read(2))[0]
             for i in range(tristrip_count) :
@@ -118,8 +121,8 @@ class Extractor:
         Returns: 
             A list of lists containing local x y z cords
         """
-
         v = []
+
         with open(self.vert_path, 'rb') as f :
            while True :
                 word = f.read(16)
@@ -294,7 +297,6 @@ class Extractor:
         out_path = filedialog.asksaveasfilename(initialdir=self.bin_dir, defaultextension='.obj', title="Save as obj")
         return out_path
 
-
 def main() :
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help='Mode of operation - chunk=0 (DO NOT USE!), vert/tri=1', type=bool)
@@ -311,6 +313,8 @@ def main() :
 
     voffset = args.voffset if args.voffset is not None else 0x0000
     toffset = args.toffset if args.toffset is not None else 0x0000
+
+
 
     extract.read_verts(start_off=voffset)
     extract.read_tristrips_complex(start_off=toffset)
