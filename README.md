@@ -11,6 +11,9 @@ Once you choose a section, look for a chunk that represents a model. Chunks have
 #### Mode
 The project has two modes -- chunk=0, vert/tri=1. Currently chunk is not implemented. Use vert/tri and provide vert and tri files.
 
+*Everything under here is outdated. Check on the wiki for the most up to date info*
+
+
 #### Triangle lists
 Triangle lists are lists of 16-bit ints that represent vertex indices in the vertex list. There are multiple types of models. Currently there are two known types -- simple and complex. However, there seems to exist other types. The triangle lists of these types are different.
 
