@@ -34,12 +34,12 @@ class Extractor:
 
 
 
-        self.verts = []
-        self.tristrips = []
+        self.verts = []  
         self.triparts = []
 
         # Depricated:
         self.tris = []   
+        self.tristrips = []
 
     def read_verts(self, start_off=0x0000) :
         """
@@ -73,9 +73,37 @@ class Extractor:
                 v.append(word)
         self.verts = v
 
-    def read_triparts_complex(self, start_off=0x0000) :
+    def read_triparts_mdlb1(self, start_off=0x0000, header=False, part_count_in=1) :
+        t = []
+        path = self.tri_path if self.mode is True else self.chunk_path
+        with open(path, 'rb') as f :
+
+            if header == True: f.seek(start_off + 0x0004)
+            else : f.seek(start_off)
+            
+            #TODO: Find actual part count           
+            part_count = part_count_in           
+            print('Total triparts: {x}'.format(x=part_count))
+            if header == True: f.seek(16, 1)
+
+            for _ in range(part_count) :
+                print('Reading tripart {x}'.format(x=_))
+                t.append(self.read_tristrips_complex(file=f))
+
+                next_short = f.read(2)
+                if len(next_short) < 2 :            # Break if EOF TODO: look for escape char
+                    print('There are only {x} triparts in the chunk!'.format(x=_+1))
+                    break
+                pad = struct.unpack('h', next_short)[0]
+                if pad is not 0 : f.seek(-2, 1)
+                
+                
+
+        self.triparts = t
+
+    def read_triparts_mdlr2(self, start_off=0x0000) :
         '''
-        Starting offset after 0x7f7fffff
+        Starting offset 0x14 (20) bytes before 7f7f7fff
         '''
         t = []
         path = self.tri_path if self.mode is True else self.chunk_path
@@ -83,10 +111,22 @@ class Extractor:
             f.seek(start_off + 0x0004)
             part_count = struct.unpack('h', f.read(2))[0]
             print('Total triparts: {x}'.format(x=part_count))
-            f.seek(14, 1)
+            f.seek(0x000e, 1)
             for _ in range(part_count) :
                 print('Reading tripart {x}'.format(x=_))
                 t.append(self.read_tristrips_complex(file=f))
+                
+                #TODO: clean up this hacky stuff
+                pad = struct.unpack('h', f.read(2))[0]          # handle potential padding
+                print('pad is {x}'.format(x=pad))
+                if pad is 0 :
+                    if struct.unpack('f', f.read(4))[0] < 1.5: # hacky but probably works
+                        print('End of complex triparts')
+                        break
+                    else :
+                        f.seek(-4, 1)
+                else : f.seek(-2, 1)
+
         self.triparts = t
 
     def read_tristrips_complex(self, start_off=0x0000, file=None) :
@@ -125,7 +165,7 @@ class Extractor:
                 else :
                     f.seek(-2, 1)
 
-            print('Tristrip {i} size {s}: \n{x}'.format(i=i, s=size, x=points))
+            print('Tristrip {i} size {s}: \n{x}\n'.format(i=i, s=size, x=points))
 
         if file is None : f.close()
 
@@ -338,6 +378,7 @@ def main() :
     parser.add_argument('-t', '--tri', help='Path to triangle list file', type=str)
     parser.add_argument('-o', '--obj', help='Path to output obj file', type=str)
     parser.add_argument('-b', '--bin', help='Path to binary directory', type=str)
+    parser.add_argument('-tpi', '--tripartindex', help='Number of triparts for MDLB1 type model', type=int)
     args = parser.parse_args()
 
     extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
@@ -348,8 +389,8 @@ def main() :
 
 
     extract.read_verts(start_off=voffset)
-    #extract.read_tristrips_complex(start_off=toffset)
-    extract.read_triparts_complex(start_off=toffset)
+    extract.read_triparts_mdlr2(start_off=toffset)
+    #extract.read_triparts_mdlb1(start_off=toffset, header=True, part_count_in=args.tripartindex)
     extract.write_verts()
     extract.write_triparts()
 
