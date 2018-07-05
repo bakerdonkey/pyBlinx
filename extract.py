@@ -8,7 +8,7 @@ import time
 
 class Extractor:
     def __init__(self, mode=False, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
-        """
+        '''
         Construct extractor. Handle mode assignment. Assign chunk, vert, tri files from args or tkinter load helpers. 
         Args:
             param1: self instance reference
@@ -18,7 +18,7 @@ class Extractor:
             param5: path to tri file
             param6: path to proposed obj output
             param7: path to binary directory
-        """
+        '''
         self.mode = mode
 
         self.bin_dir = bin_dir if bin_dir is not None else './'
@@ -42,15 +42,11 @@ class Extractor:
         self.tristrips = []
 
     def read_verts(self, start_off=0x0000) :
-        """
+        '''
         Parses the list of raw floats delimited by some unknown value.
-
         Args:
             param1: self instance reference
-
-        Returns: 
-            A list of lists containing local x y z cords
-        """
+        '''
 
         v = []
 
@@ -60,8 +56,8 @@ class Extractor:
             f.seek(start_off)
             while True :
                 raw_word = f.read(12)
-                if raw_word[:4] ==  b'\xff\x00\x00\x00' :                 # Check for escape symbol or EOF TODO: verify and debug
-#                    print('Found vert escape symbol')
+                if raw_word[:4] ==  b'\xff\x00\x00\x00' :                   # Check for escape symbol or EOF 
+#                    print('Found vert escape symbol')                      TODO: verify and debug
                     break
 
                 elif len(raw_word) < 12 :
@@ -73,7 +69,10 @@ class Extractor:
                 v.append(word)
         self.verts = v
 
-    def read_triparts_mdlb1(self, start_off=0x0000, header=False, part_count_in=1) :
+    def read_triparts_stageobj(self, start_off=0x0000, header=False, part_count_in=1) :
+        '''
+        0x14 (20) byte header. Does not know tripart count.
+        '''
         t = []
         path = self.tri_path if self.mode is True else self.chunk_path
         with open(path, 'rb') as f :
@@ -84,11 +83,12 @@ class Extractor:
             #TODO: Find actual part count           
             part_count = part_count_in           
             print('Total triparts: {x}'.format(x=part_count))
-            if header == True: f.seek(16, 1)
+
 
             for _ in range(part_count) :
                 print('Reading tripart {x}'.format(x=_))
-                t.append(self.read_tristrips_complex(file=f))
+                cur_tripart = self.read_tristrips_complex(file=f)
+                t.append(cur_tripart)
 
                 next_short = f.read(2)
                 if len(next_short) < 2 :            # Break if EOF TODO: look for escape char
@@ -101,30 +101,45 @@ class Extractor:
 
         self.triparts = t
 
-    def read_triparts_mdlr2(self, start_off=0x0000) :
+    def read_triparts_prop(self, start_off=0x0000, part_count_in=None) :
         '''
         Starting offset 0x14 (20) bytes before 7f7f7fff
         '''
         t = []
         path = self.tri_path if self.mode is True else self.chunk_path
         with open(path, 'rb') as f :
-            f.seek(start_off + 0x0004)
-            part_count = struct.unpack('h', f.read(2))[0]
+            f.seek(start_off + 0x0014)
+
+            part_count = struct.unpack('h', f.read(2))[0] if part_count_in is None else part_count_in
+
             print('Total triparts: {x}'.format(x=part_count))
-            f.seek(0x000e, 1)
+
             for _ in range(part_count) :
+
                 print('Reading tripart {x}'.format(x=_))
-                t.append(self.read_tristrips_complex(file=f))
+                cur_tripart = self.read_tristrips_complex(file=f)
+                t.append(cur_tripart)
                 
-                #TODO: clean up this hacky stuff
-                pad = struct.unpack('h', f.read(2))[0]          # handle potential padding
+                #TODO: clean up 
+                pad = struct.unpack('h', f.read(2))[0]                  # handle potential padding
+                if pad < 2 :
+                    print('There are only {x} triparts in the chunk!'.format(x=_+1))
+                    break
+                
                 print('pad is {x}'.format(x=pad))
+
                 if pad is 0 :
-                    if struct.unpack('f', f.read(4))[0] < 1.5: # hacky but probably works
-                        print('End of complex triparts')
+                    if struct.unpack('f', f.read(4))[0] < 1.5:          # hacky but probably works since
+                        print('End of complex triparts')                # first 8 bytes (float) =~ 2.1
                         break
                     else :
                         f.seek(-4, 1)
+                elif pad is -1 :
+                    if struct.unpack('h', f.read(2))[0] is 0 :
+                        break
+                    else :
+                        print('Escape symbol encountered.')
+                        f.seek(-2, 1)
                 else : f.seek(-2, 1)
 
         self.triparts = t
@@ -205,8 +220,6 @@ class Extractor:
             f = open(self.obj_path, 'a+')
         else :
             f = file
-        
-
 
         print('Writing tristrips in part {x}... '.format(x=i), end='')
         for t in tristrips :
@@ -378,7 +391,7 @@ def main() :
     parser.add_argument('-t', '--tri', help='Path to triangle list file', type=str)
     parser.add_argument('-o', '--obj', help='Path to output obj file', type=str)
     parser.add_argument('-b', '--bin', help='Path to binary directory', type=str)
-    parser.add_argument('-tpi', '--tripartindex', help='Number of triparts for MDLB1 type model', type=int)
+    parser.add_argument('-tpi', '--tripartcount', help='Custom number of triparts', type=int)
     args = parser.parse_args()
 
     extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
@@ -389,8 +402,8 @@ def main() :
 
 
     extract.read_verts(start_off=voffset)
-    extract.read_triparts_mdlr2(start_off=toffset)
-    #extract.read_triparts_mdlb1(start_off=toffset, header=True, part_count_in=args.tripartindex)
+    extract.read_triparts_prop(start_off=toffset, part_count_in=args.tripartcount)
+    #extract.read_triparts_stageobj(start_off=toffset, header=True, part_count_in=args.tripartcount)
     extract.write_verts()
     extract.write_triparts()
 
