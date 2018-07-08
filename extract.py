@@ -25,6 +25,7 @@ class SectionAddress :
     MAP11   =     0x01C58640
     MDLR2   =     0x01DD52E0
     
+    MDLR5   =     0x026C5660
     #TODO: Finish filling out
 
 class Extractor :
