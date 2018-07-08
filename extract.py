@@ -23,8 +23,9 @@ class SectionAddress :
     MAP13   =     0x0191EFE0
     MAP12   =     0x01AD72C0
     MAP11   =     0x01C58640
+    MDLR2   =     0x01DD52E0
     
-    #TODO: Finish filling out!!
+    #TODO: Finish filling out
 
 class Extractor :
     def __init__(self, mode=0, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
@@ -146,7 +147,7 @@ class Extractor :
                 'float array 2' : None,
                 'mystery short 0 offset' : None}
         
-    def read_chunk(self, section, start_off=0x0000, file=None, nc_pointers = False, voffset=0x0000, toffset=0x0000) :
+    def read_chunk(self, section, tpart_flavor='standard', start_off=0x0000, file=None, nc_pointers = False, voffset=0x0000, toffset=0x0000, head=True) :
         if file is None :    
             path = self.chunk_path
             f = open(path, 'rb')
@@ -154,9 +155,11 @@ class Extractor :
         else : f = file
         
         # Hacky, make more flexible
-        if nc_pointers :
+        if nc_pointers is True:
             f.seek(36)
-            chunk_offset = struct.unpack('i', f.read(4))[0]  - section
+            if head : chunk_offset = struct.unpack('i', f.read(4))[0]  - section
+            else : chunk_offset = 0x4c8
+
             f.seek(-8, 2)
             voff = struct.unpack('i', f.read(4))[0] - (section + chunk_offset)
             print('Vertlist offset: {x}'.format(x=hex(voff)))
@@ -164,20 +167,22 @@ class Extractor :
             print('Trilist offset: {x}'.format(x=hex(toff)))
             f.seek(0)
 
-
         else :
+            print('**Offsets set by user**')
             voff = voffset
+            print('Vertlist offset: {x}'.format(x=hex(voff)))
             toff = toffset
+            print('Trilist offset: {x}'.format(x=hex(toff)))
         
         print('Reading chunk...')
-        header = self.parse_chunk_header(file=f)
+        if head :
+            header = self.parse_chunk_header(file=f)
+            print('\nHeader info')
+            for k, v in header.items() :
+                print('{x} : {y}'.format(x=k, y=v))
+            print()
 
-        print('\nHeader info')
-        for k, v in header.items() :
-            print('{x} : {y}'.format(x=k, y=v))
-        print()
-
-        triset = self.read_tripart_set(start_off=toff, part_count=10, file=f)
+        triset = self.read_tripart_set(start_off=toff, flavor=tpart_flavor, part_count=10, file=f)
 
         vertlist = self.read_verts(start_off=voff, file=f)
        
@@ -187,7 +192,7 @@ class Extractor :
 
         if file is None : f.close()
         
-    def read_tripart_set(self, start_off=0x0000, header=True, part_count=1, file=None) :
+    def read_tripart_set(self, flavor='standard', start_off=0x0000, header=True, part_count=10, file=None) :
         '''
         12 byte header, usually: 1325 0400 b2b2 b2ff 7f7f 7fff
         '''
@@ -199,7 +204,10 @@ class Extractor :
         t = [] # is this really neccisary?
         
         # TODO research header types, usage, etc
-        if header is True : f.seek(start_off + 0x000c)
+        if header is True : 
+            f.seek(start_off + 0x000c)
+
+
         else : f.seek(start_off, 1)
 
         print('Reading tripart set')
@@ -207,7 +215,7 @@ class Extractor :
 
         for i in range(part_count) :
             print('Tripart {x}:'.format(x=i+1))
-            tripart_t = self.read_tristrip_set(file=f)
+            tripart_t = self.read_tristrip_set(file=f, tpart_flavor=flavor)
             t.append(tripart_t[0])
             if tripart_t[1] :
                 print('Exit from tristrip set reader after tripart {x}'.format(x=i+1))
@@ -218,25 +226,32 @@ class Extractor :
  #               print('Reached EOF after tripart {x}'.format(x=i+1))
  #               return t
 
-            if padding is not 0 :
-                f.seek(-2,1)
-            
             if padding == 255 :
                 if struct.unpack('h', f.read(2))[0] == 0 :
                     print('Reached escape symbol ff000000 after tripart {x}'.format(x=i+1))
                     return t
+                else :
+                    f.seek(-2, 1)
+
+            if padding is not 0 :
+                f.seek(-2,1)
 
         if file is None : f.close()
         return t
 
-    def read_tristrip_set(self, file, style='complex', start_off=0x0000) :
+    def read_tristrip_set(self, file, style='complex', tpart_flavor='standard', start_off=0x0000) :
         f = file
         t = []
         last = False
 
+        if tpart_flavor is 'fxx' :
+            print('\t Tpart flavor fxx')
+            f.seek(4, 1)
+
         #TODO: Research and handle 0x0, 0x2, and 0x4
         f.seek(6, 1)
         size = struct.unpack('h', f.read(2))[0] * 2
+        print('\tTripart size : {x}'.format(x=size))
         f.seek(size, 1)
 
         escape = struct.unpack('h', f.read(2))[0] 
@@ -293,7 +308,6 @@ class Extractor :
                     ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
                     f.write(ln)
                 print('Done')
-
 
     def write_triparts(self) :
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
@@ -590,8 +604,8 @@ def main() :
     parser.add_argument('mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
     parser.add_argument('-c', '--chunk', help='Path to chunk file', type=str)
     parser.add_argument('-p', '--pointers', help='Chunk file contains pointers to next chunk', type=bool)
-    parser.add_argument('-vo', '--voffset', help='Vertex offset in chunk file (in hex)', type=lambda x: int(x,0))
-    parser.add_argument('-to', '--toffset', help='Triangle offset in chunk file (in hex)', type=lambda x: int(x,0))
+    parser.add_argument('-vo', '--voffset', help='Vertex offset in chunk file (in hex)', type=int) #type=lambda x: int(x,0)
+    parser.add_argument('-to', '--toffset', help='Triangle offset in chunk file (in hex)', type=int)
     parser.add_argument('-v', '--vert', help='Path to vertex list file', type=str)
     parser.add_argument('-t', '--tri', help='Path to triangle list file', type=str)
     parser.add_argument('-o', '--obj', help='Path to output obj file', type=str)
@@ -601,15 +615,15 @@ def main() :
 
     extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    voffset = args.voffset if args.voffset is not None else 0x0000
-    toffset = args.toffset if args.toffset is not None else 0x0000
+    v_offset = args.voffset if args.voffset is not None else 0x0000
+    t_offset = args.toffset if args.toffset is not None else 0x0000
 
-
+    print(str(hex(v_offset)) + ' ' + str(hex(t_offset)))
 
     #extract.read_verts(start_off=voffset)
     #extract.read_triparts_prop(start_off=toffset, part_count_in=args.tripartcount)
     #extract.read_triparts_stageobj(start_off=toffset, header=True, part_count_in=args.tripartcount)
-    extract.read_chunk(nc_pointers=args.pointers, section=SectionAddress.MAP11)
+    extract.read_chunk(voffset=v_offset, nc_pointers=args.pointers, toffset=t_offset, section=SectionAddress.MAP11, head=True)
     extract.write_verts()
     extract.write_triparts()
 
