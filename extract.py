@@ -63,22 +63,21 @@ class Extractor :
         self.tris = []   
         self.tristrips = []
 
-    def read_verts(self, start_off=0x0000, file = None) :
+    def read_vertlist(self, start_off=0x0000, file=None) :
         '''
         Parses the list of raw floats delimited by some unknown value.
         Args:
             param1: self instance reference
         '''
-
         v = []
         if file is None :    
             path = self.vert_path if self.mode is True else self.chunk_path
-            f = open(path, 'rb')   
-
+            f = open(path, 'rb') 
         else : f = file
 
+        f.seek(start_off)
 
-        f.seek(start_off + 6)
+        f.seek(6, 1)
         count = struct.unpack('h', f.read(2))[0]
         print('Reading {x} verts'.format(x=count))
         f.seek(8, 1)
@@ -99,99 +98,78 @@ class Extractor :
         
         return v
 
-    def parse_chunk_header(self, start_off=0x0000, file=None, chunk_style='short') :
+    def parse_chunk_header(self, start_off=0x0000, file=None, chunk_style='single') :
         '''
         Reads the header for standard complex trilist chunk
         Returns dict with all objects in chunk header.
         TODO: adapt for more types of chunks and figure out mystery values
         '''
-        if file is None :    
-            path = self.chunk_path
-            f = open(path, 'rb')   
+        if file is None : 
+            f = open(self.chunk_path, 'rb')   
         else : f = file
-        
-        f.seek(start_off + 8, 1)        # seek past first two dwords
+        f.seek(start_off)
 
-        h_float_array_0 = []            # store first set of floats
-        for _ in range(6) : h_float_array_0.append(struct.unpack('f', f.read(4))[0])
-        
-        mystery_short_0 = struct.unpack('h', f.read(2))[0]   #hold onto short, not sure what it is
+        entry_short = struct.unpack('h', f.read(2))[0]   #hold onto short, not sure what it is
         f.seek(2,1)
-        
-        h_sect_offset = hex(struct.unpack('i', f.read(4))[0])    # store offset of chunk (virtual address)
 
+        h_sect_offset = struct.unpack('i', f.read(4))[0]    # store offset of chunk (virtual address)
+
+        f.seek(-40, 1)      # Go to top of header
+
+        vertlist_offset = struct.unpack('i', f.read(4))[0]
+        triset_offset = struct.unpack('i', f.read(4))[0]
+
+        float_array_0 = []            # store first set of floats
+        for _ in range(6) : float_array_0.append(struct.unpack('f', f.read(4))[0])
+        
+        f.seek(8, 1)       
+        
         h_float_array_1 = []            # store second set of floats
         for _ in range(9) : h_float_array_1.append(struct.unpack('f', f.read(4))[0])
-        f.seek(4, 1)          # maybe another float? 
 
-        mystery_short_0_prev_offset = hex(struct.unpack('i', f.read(4))[0])   #store offset to prev chunk mystery short 0
+        if chunk_style == 'list' :
+            if struct.unpack('i', f.read(4))[0] != 0 :
+                f.seek(-4, 1)
 
-        if chunk_style == 'long' :
-            mystery_short_1 = struct.unpack('h', f.read(2))   #store another mystery short
-            f.seek(2, 1)
-
-            h_float_array_2 = []            # store third set of floats
-            for _ in range(10) : h_float_array_2.append(struct.unpack('f', f.read(4))[0])
-
-            mystery_short_0_offset = hex(struct.unpack('i', f.read(4))[0])  # store offset to cur chunk mystery short 0
-
-            f.seek(8, 1)
+            next_chunk_offset = struct.unpack('i', f.read(4))[0]   #store offset to prev chunk mystery short 0
+        else :
+            next_chunk_offset = None
 
         if file is None : f.close()
 
-        return {'float array 0': h_float_array_0, 
-                'mystery short 0': mystery_short_0,
+        return {'vertlist offset' : vertlist_offset,
+                'triset offset' : triset_offset,
+                'float array 0': float_array_0, 
+                'entry short' : entry_short,
                 'chunk offset' : h_sect_offset,
                 'float array 1' : h_float_array_1,
-                'mystery short 0 prev offset' : mystery_short_0_prev_offset,
-                'mystery short 1' : None,
-                'float array 2' : None,
-                'mystery short 0 offset' : None}
-        
-    def read_chunk(self, section, tpart_flavor='standard', start_off=0x0000, file=None, nc_pointers = False, voffset=0x0000, toffset=0x0000, head=True) :
-        if file is None :    
-            path = self.chunk_path
-            f = open(path, 'rb')
+                'next chunk offset' : next_chunk_offset }
 
+    def read_chunk(self, section, usage='vt', start_off=0x0000, file=None) :
+        if file is None : 
+            f = open(self.chunk_path, 'rb')
+            f.seek(start_off)
         else : f = file
         
-        # Hacky, make more flexible
-        if nc_pointers is True:
-            f.seek(36)
-            if head : chunk_offset = struct.unpack('i', f.read(4))[0]  - section
-            else : chunk_offset = 0x4c8
+        output = []
 
-            f.seek(-8, 2)
-            voff = struct.unpack('i', f.read(4))[0] - (section + chunk_offset)
-            print('Vertlist offset: {x}'.format(x=hex(voff)))
-            toff = struct.unpack('i', f.read(4))[0] - (section + chunk_offset)
-            print('Trilist offset: {x}'.format(x=hex(toff)))
-            f.seek(0)
+        header = self.parse_chunk_header(start_off=start_off, file=f)
+        print('Chunk info :')
+        for k, v in header.items() :
+            print('{x} : {y}'.format(x=k, y=v))
+        print()
 
-        else :
-            print('**Offsets set by user**')
-            voff = voffset
-            print('Vertlist offset: {x}'.format(x=hex(voff)))
-            toff = toffset
-            print('Trilist offset: {x}'.format(x=hex(toff)))
-        
-        print('Reading chunk...')
-        if head :
-            header = self.parse_chunk_header(file=f)
-            print('\nHeader info')
-            for k, v in header.items() :
-                print('{x} : {y}'.format(x=k, y=v))
-            print()
+        if usage.find('v') > -1 : 
+            vertlist_offset = header['vertlist offset'] - section
+            output.append(self.read_vertlist(start_off=vertlist_offset, file=f))
+            self.verts = output[-1]
 
-        triset = self.read_tripart_set(start_off=toff, flavor=tpart_flavor, part_count=10, file=f)
+        if usage.find('t') > -1 : 
+            triset_offset = header['triset offset'] - section
+            output.append(self.read_tripart_set(start_off=triset_offset, file=f))
+            self.verts = output[-1]
 
-        vertlist = self.read_verts(start_off=voff, file=f)
-       
-
-        self.verts = vertlist
-        self.triparts = triset
-
-        if file is None : f.close()
+        return output
         
     def read_tripart_set(self, flavor='standard', start_off=0x0000, header=True, part_count=10, file=None) :
         '''
@@ -202,7 +180,10 @@ class Extractor :
             f = open(path, 'rb')
         
         else : f = file
+
         t = [] # is this really neccisary?
+
+        f.seek(start_off)
         
         # TODO research header types, usage, etc
         if header is True : 
@@ -223,10 +204,8 @@ class Extractor :
                 return t
 
             padding = struct.unpack('h', f.read(2))[0]
- #           if len(bytes(padding)) < 2 :
- #               print('Reached EOF after tripart {x}'.format(x=i+1))
- #               return t
 
+            # May be redundant
             if padding == 255 :
                 if struct.unpack('h', f.read(2))[0] == 0 :
                     print('Reached escape symbol ff000000 after tripart {x}'.format(x=i+1))
@@ -296,9 +275,8 @@ class Extractor :
 
         return (t, last)          
 
-
-    def write_verts(self) :
-        verts = self.verts
+    def write_verts(self, in_vertlist=None) :
+        verts = self.verts if in_vertlist is None else in_vertlist
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
         with open(self.obj_path, 'w+') as f :
             if not verts :
@@ -310,11 +288,12 @@ class Extractor :
                     f.write(ln)
                 print('Done')
 
-    def write_triparts(self) :
+    def write_triparts(self, in_triparts=None) :
+        triparts = self.triparts if in_triparts is None else in_triparts
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
         with open(self.obj_path, 'a+') as f :
             i = 0
-            for t in self.triparts :
+            for t in triparts :
                 f.write('#tripart {x}\n'.format(x=i))
                 self.write_tristrips(cur_tristrips=t, file=f, i=i)
                 i += 1
@@ -329,10 +308,16 @@ class Extractor :
         else :
             f = file
 
+        # TODO: verify normal bug is fixed
         print('Writing tristrips in part {x}... '.format(x=i), end='')
         for t in tristrips :
             for j in range(len(t)-2) :
-                ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                if j % 2 == 0 : 
+                    ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                
+                else :  
+                    ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+
                 f.write(ln)
 
         print('Done')
@@ -501,7 +486,7 @@ class Extractor :
 
         #self.tristrips = t
         return t
-    def write_obj(self) :
+    def write_obj_old(self) :
         """
         Creates a Wavefront obj file that contains the vertex and triangle list.
         """
@@ -538,7 +523,7 @@ class Extractor :
                     ln = 'f {i0} {i1} {i2}\n'.format(i0=t[0], i1=t[1], i2=t[2])
                     f.write(ln)
                 print('Done')
-    def old_read_verts(self) :
+    def old_read_vertlist(self) :
         #TODO: implement starting offset
         """
         Parses the list of raw floats delimited by some unknown value.
@@ -597,37 +582,77 @@ class Extractor :
             i += 2
             # TODO: Handle invalid and incorrect tris 
 
-        self.tris = t
+        self.tris = t       
+    def read_chunk_old(self, section, tpart_flavor='standard', start_off=0x0000, file=None, nc_pointers=False, voffset=0x0000, toffset=0x0000, head=True) :
+        if file is None :    
+            path = self.chunk_path
+            f = open(path, 'rb')
 
+        else : f = file
+        
+        # Hacky, make more flexible. FIX CHUNK OFFSET
+        if nc_pointers is True:
+            f.seek(36)
+            if head : chunk_offset = struct.unpack('i', f.read(4))[0]  - section
+            else : chunk_offset = 0xad8
+
+            f.seek(-8, 2)
+            voff = struct.unpack('i', f.read(4))[0] - (section + chunk_offset)
+            print('Vertlist offset: {x}'.format(x=hex(voff)))
+            toff = struct.unpack('i', f.read(4))[0] - (section + chunk_offset)
+            print('Trilist offset: {x}'.format(x=hex(toff)))
+            f.seek(0)
+
+        else :
+            print('**Offsets set by user**')
+            voff = voffset
+            print('Vertlist offset: {x}'.format(x=hex(voff)))
+            toff = toffset
+            print('Trilist offset: {x}'.format(x=hex(toff)))
+        
+        print('Reading chunk...')
+        if head :
+            header = self.parse_chunk_header(file=f)
+            print('\nHeader info')
+            for k, v in header.items() :
+                print('{x} : {y}'.format(x=k, y=v))
+            print()
+
+        triset = self.read_tripart_set(start_off=toff, flavor=tpart_flavor, part_count=10, file=f)
+
+        vertlist = self.read_vertlist(start_off=voff, file=f)
+       
+
+        self.verts = vertlist
+        self.triparts = triset
+
+        if file is None : f.close()
 
 def main() :
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
     parser.add_argument('-c', '--chunk', help='Path to chunk file', type=str)
-    parser.add_argument('-p', '--pointers', help='Chunk file contains pointers to next chunk', type=bool)
-    parser.add_argument('-vo', '--voffset', help='Vertex offset in chunk file (in hex)', type=int) #type=lambda x: int(x,0)
-    parser.add_argument('-to', '--toffset', help='Triangle offset in chunk file (in hex)', type=int)
-    parser.add_argument('-v', '--vert', help='Path to vertex list file', type=str)
-    parser.add_argument('-t', '--tri', help='Path to triangle list file', type=str)
+    parser.add_argument('-c0', '--coffset', help='Chunk file entry offset', type=lambda x: int(x,0))
     parser.add_argument('-o', '--obj', help='Path to output obj file', type=str)
     parser.add_argument('-b', '--bin', help='Path to binary directory', type=str)
-    parser.add_argument('-tpi', '--tripartcount', help='Custom number of triparts', type=int)
+
+    parser.add_argument('-p', '--pointers', help='(DEPRICATED) Chunk file contains pointers to next chunk', type=bool)
+    parser.add_argument('-vo', '--voffset', help='(DEPRICATED) Vertex offset in chunk file (in hex)', type=int)
+    parser.add_argument('-to', '--toffset', help='(DEPRICATED) Triangle offset in chunk file (in hex)', type=int)
+    parser.add_argument('-v', '--vert', help='(DEPRICATED) Path to vertex list file', type=str)
+    parser.add_argument('-t', '--tri', help='(DEPRICATED) Path to triangle list file', type=str)
+    parser.add_argument('-tpi', '--tripartcount', help='(DEPRICATED) Custom number of triparts', type=int)
     args = parser.parse_args()
 
     extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    v_offset = args.voffset if args.voffset is not None else 0x0000
-    t_offset = args.toffset if args.toffset is not None else 0x0000
-
-    print(str(hex(v_offset)) + ' ' + str(hex(t_offset)))
-
-    #extract.read_verts(start_off=voffset)
+    #extract.read_vertlist(start_off=voffset)
     #extract.read_triparts_prop(start_off=toffset, part_count_in=args.tripartcount)
     #extract.read_triparts_stageobj(start_off=toffset, header=True, part_count_in=args.tripartcount)
-    extract.read_chunk(voffset=v_offset, nc_pointers=args.pointers, toffset=t_offset, section=SectionAddress.MAP11, head=True)
-    extract.write_verts()
-    extract.write_triparts()
-
+    #extract.read_chunk_old(voffset=v_offset, nc_pointers=args.pointers, toffset=t_offset, section=SectionAddress.MDLR5, head=False)
+    chunk = extract.read_chunk(usage='vt', section=SectionAddress.MAP11, start_off=args.coffset)
+    extract.write_verts(chunk[0])
+    extract.write_triparts(chunk[1])
 
 if __name__ == '__main__' :
     main()
