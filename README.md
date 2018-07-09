@@ -12,10 +12,10 @@ The project has two modes -- chunk=0, vert/tri=1.
 #### Chunk Mode
 
 Usage:
-`extract.py 0 -c *Path to section file*(string) -co *chunk offset* (int in hex notation) 
+`extract.py 0 -c *Path to section file*(string) -co *chunk offset* (int in hex notation)`
 
 Example:
-`extract.py 0 -c ../blinx/MAP11 -co 0x3ed84
+`extract.py 0 -c ../blinx/MAP11 -co 0x3ed84`
 
 You must use section MAP11 right now. To use other sections change line 649. There will be a better solution soon.
 
