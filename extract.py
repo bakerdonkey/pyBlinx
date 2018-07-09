@@ -646,10 +646,6 @@ def main() :
 
     extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    #extract.read_vertlist(start_off=voffset)
-    #extract.read_triparts_prop(start_off=toffset, part_count_in=args.tripartcount)
-    #extract.read_triparts_stageobj(start_off=toffset, header=True, part_count_in=args.tripartcount)
-    #extract.read_chunk_old(voffset=v_offset, nc_pointers=args.pointers, toffset=t_offset, section=SectionAddress.MDLR5, head=False)
     chunk = extract.read_chunk(usage='vt', section=SectionAddress.MAP11, start_off=args.coffset)
     extract.write_verts(chunk[0])
     extract.write_triparts(chunk[1])
