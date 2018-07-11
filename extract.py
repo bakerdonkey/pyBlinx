@@ -181,6 +181,8 @@ class Extractor :
             output.append(self.read_tripart_set(start_off=triset_offset, flavor=triset_flavor, file=f))
             self.verts = output[-1]
 
+            
+
         if file is None : f.close()
 
         return output
@@ -246,7 +248,7 @@ class Extractor :
         for i in range(part_count) :
             print('Tripart {x}:'.format(x=i+1))
             tripart_t = self.read_tristrip_set(file=f)
-            t.append(tripart_t[0])
+            t.append((tripart_t[0], tripart_t[1]))
             if tripart_t[1] :
                 print('Exit from tristrip set reader after tripart {x}'.format(x=i+1))
                 return t
@@ -292,15 +294,31 @@ class Extractor :
 
         texpart = []
         for tripart in tripart_set :
+            width = 0
+            height = 0
+
+            print('stringindex ' + str(tripart[1]))
+            print('stringindex ' + str(texture_list[tripart[1]]))
+
+            with open(texture_list[tripart[1]], 'rb') as f_t :
+                f_t.seek(0xc)
+                width = struct.unpack('i', f_t.read(4))[0]
+                height = struct.unpack('i', f_t.read(4))[0]
+
             texstrip = []
-            for tristrip in tripart :
+            for tristrip in tripart[0] :
                 tex = [2]
                 for c in tristrip :
-                    tex = c[1:]
+                    tex = list(c[1:])
+                    tex[0] /= height
+                    tex[1] /= width
+                    tex = tuple(tex)
 
                 texstrip.append(tex)
 
             texpart.append(texstrip)
+        
+        return tuple(texpart)
                 
     def read_tristrip_set(self, file, style='complex', start_off=0x0000) :
         f = file
@@ -357,7 +375,7 @@ class Extractor :
 
             t.append(strip)  
 
-        return (t, last)          
+        return (t, stringlist_index, last)          
 
     def read_vertlist(self, start_off=0x0000, file=None) :
         '''
@@ -404,9 +422,9 @@ class Extractor :
                 self.write_tristrips(cur_tristrips=t, file=f, i=i)
                 i += 1
 
-    def write_tristrips(self, cur_tristrips, file=None, i=0) :
+    def write_tristrips(self, cur_tristrips, file=None, mode=None, i=0) :
         
-        tristrips = cur_tristrips
+        tristrips = cur_tristrips[0]
 
         if file is None :
             if not self.obj_path : self.obj_path = self.__tk_save_obj()
@@ -414,17 +432,30 @@ class Extractor :
         else :
             f = file
 
-        # TODO: verify normal bug is fixed
+        # TODO: verify normal bug is fixed, make code more readable!
         print('Writing tristrips in part {x}... '.format(x=i), end='')
         for t in tristrips :
             for j in range(len(t)-2) :
-                if j % 2 == 0 : 
-                    ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
-                
-                else :  
-                    ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                if mode is 'tex' :
+                    if j % 2 == 0 : 
+                        ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                    
+                    else :  
+                        ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
 
-                f.write(ln)
+                    f.write(ln)
+
+                
+                else :
+                    if j % 2 == 0 : 
+                        ln = 'f {v0}/{vt0} {v1}/{vt1} {v2}/{vt2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                    
+                    else :  
+                        ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+
+                    f.write(ln)
+
+
 
         print('Done')
 
@@ -687,8 +718,15 @@ def main() :
     sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.MAP11)
 
     chunk = extract.read_chunk(usage='vt', section=SectionAddress.MAP11, start_off=args.coffset)
+    
+    extract.create_texture_coordinates(triset=chunk[1], stringlist=sl)
+
+
+
     extract.write_verts(chunk[0])
     extract.write_triparts(chunk[1])
+
+    
 
 if __name__ == '__main__' :
     main()
