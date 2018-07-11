@@ -28,8 +28,9 @@ class SectionAddress :
     MDLR5   =     0x026C5660
     #TODO: Finish filling out
 
+    
 class Extractor :
-    def __init__(self, mode=0, chunk_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
+    def __init__(self, mode=0, section_path=None, media_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
         '''
         Construct extractor. Handle mode assignment. Assign chunk, vert, tri files from args or tkinter load helpers. 
         Args:
@@ -46,57 +47,62 @@ class Extractor :
         self.bin_dir = bin_dir if bin_dir is not None else './'
 
         if mode == 0 :
-            self.chunk_path = chunk_path if chunk_path is not None else self.__tk_load_bin('chunk')
-        
+            self.section_path = section_path if section_path is not None else self.__tk_load_bin('section')
+            self.media_path = media_path if media_path is not None else self.__tk_load_dir()
+
         else :
             self.vert_path = vert_path if vert_path is not None else self.__tk_load_bin('vert')
             self.tri_path = tri_path if tri_path is not None else self.__tk_load_bin('tri')
         
         self.obj_path = obj_path if obj_path is not None else ''        # Do not use tk to create obj path until file is verified to work
-
-
+        
+        self.stringlist_list = []
 
         self.verts = []  
         self.triparts = []
 
-        # Depricated:
-        self.tris = []   
-        self.tristrips = []
-
-    def read_vertlist(self, start_off=0x0000, file=None) :
+    def parse_stringlist(self, start_off=0x0000, file=None, section=SectionAddress.MAP11) :
         '''
-        Parses the list of raw floats delimited by some unknown value.
-        Args:
-            param1: self instance reference
+        Read a stringlist at a specified offset, store each member in a list. This is very slow, can be improved.
         '''
-        v = []
-        if file is None :    
-            path = self.vert_path if self.mode is True else self.chunk_path
-            f = open(path, 'rb') 
-        else : f = file
+        if file is None : 
+            f = open(self.section_path, 'rb')
 
-        f.seek(start_off)
+        else : f = file       
 
-        f.seek(6, 1)
-        count = struct.unpack('h', f.read(2))[0]
-        print('Reading {x} verts'.format(x=count))
-        f.seek(8, 1)
-        for _ in range(count) :
-            raw_word = f.read(12)
-            if len(raw_word) < 12 :
-                break
+        f.seek(start_off) 
 
-            elif raw_word[:4] ==  b'\xff\x00\x00\x00' :
-                break
+        s = []
 
-            word = struct.unpack('fff', raw_word)
-            v.append(word)
+        print('Parsing stringlist...')
 
-            f.seek(4, 1)
-        
-        if file is None : f.close()
-        
-        return v
+        head_offset = struct.unpack('i', f.read(4))[0]
+        size = struct.unpack('i', f.read(4))[0]
+
+        f.seek(head_offset - section)
+
+        for i in range(size) :
+            
+            charlist = struct.unpack('<32c', f.read(32))
+            string = ''
+            for c in charlist :
+                if c != b'\x00' :
+                    string = string + c.decode('latin-1')
+
+                   
+            mediapath = self.media_path if self.media_path is not None else ''
+                
+            string = mediapath + '/' + string + '.dds'
+
+            print('{x}\t{s}'.format(x=i, s=string))
+            s.append(string)
+            
+        print()
+
+        self.stringlist_list.append(s)
+
+
+        return s
 
     def parse_chunk_header(self, start_off=0x0000, file=None, chunk_style='single') :
         '''
@@ -105,7 +111,7 @@ class Extractor :
         TODO: adapt for more types of chunks and figure out mystery values
         '''
         if file is None : 
-            f = open(self.chunk_path, 'rb')   
+            f = open(self.section_path, 'rb')   
         else : f = file
         f.seek(start_off)
 
@@ -145,12 +151,17 @@ class Extractor :
                 'float array 1' : h_float_array_1,
                 'next chunk offset' : next_chunk_offset }
 
+    #TODO: make file objects class variables -- data AND section
+
     def read_chunk(self, section, usage='vt', start_off=0x0000, file=None) :
         if file is None : 
-            f = open(self.chunk_path, 'rb')
-            f.seek(start_off)
+            f = open(self.section_path, 'rb')
+            
         else : f = file
-        
+            
+        f.seek(start_off)
+
+
         output = []
 
         header = self.parse_chunk_header(start_off=start_off, file=f)
@@ -166,17 +177,54 @@ class Extractor :
 
         if usage.find('t') > -1 : 
             triset_offset = header['triset offset'] - section
-            output.append(self.read_tripart_set(start_off=triset_offset, file=f))
+            triset_flavor = self.get_triset_flavor(file=f, start_off=triset_offset)
+            output.append(self.read_tripart_set(start_off=triset_offset, flavor=triset_flavor, file=f))
             self.verts = output[-1]
 
+        if file is None : f.close()
+
         return output
-        
+
+    def get_triset_flavor(self, file, start_off=0x0000) :
+        if file is None : 
+            f = open(self.section_path, 'rb')
+        else : f = file        
+
+        f.seek(start_off)
+        f.seek(12, 1)
+
+        candidate = struct.unpack('i', f.read(4))
+
+        if candidate == 0x5FFFFFF :
+            if file is None : f.close()
+            return 'fxx'
+
+        elif candidate == 0xBFFFFFF :
+            if file is None : f.close()
+            return 'fxx'
+
+        elif candidate == 0xFFFFFFFF :
+            if file is None : f.close()
+            return 'fxx'
+
+        else :
+            if file is None : f.close()
+            return 'standard'
+
     def read_tripart_set(self, flavor='standard', start_off=0x0000, header=True, part_count=10, file=None) :
         '''
         12 byte header, usually: 1325 0400 b2b2 b2ff 7f7f 7fff
         '''
+
+        #TODO: Fully implement tripart flavors
+        if flavor is not 'standard' :
+            print('Non-standard tripart flavors are currently not supported. Returning')
+            return None
+
+
+
         if file is None :    
-            path = self.tri_path if self.mode is True else self.chunk_path
+            path = self.tri_path if self.mode is True else self.section_path
             f = open(path, 'rb')
         
         else : f = file
@@ -197,7 +245,7 @@ class Extractor :
 
         for i in range(part_count) :
             print('Tripart {x}:'.format(x=i+1))
-            tripart_t = self.read_tristrip_set(file=f, tpart_flavor=flavor)
+            tripart_t = self.read_tristrip_set(file=f)
             t.append(tripart_t[0])
             if tripart_t[1] :
                 print('Exit from tristrip set reader after tripart {x}'.format(x=i+1))
@@ -219,17 +267,53 @@ class Extractor :
         if file is None : f.close()
         return t
 
-    def read_tristrip_set(self, file, style='complex', tpart_flavor='standard', start_off=0x0000) :
+    def create_texture_coordinates(self, triset=None, stringlist=None) :
+        '''
+        All tristrips must exist and be complex. 
+        '''
+        print('Creating texture coordinates... ')
+        
+        # TODO: handle invalid trisets
+        if triset == None :
+            tripart_set = self.triparts
+
+        else : tripart_set = triset
+
+        if stringlist == None :
+            print('Stringlist not expressly declaired, using first stringlist in section')
+            if self.stringlist_list is not None : 
+                texture_list = self.stringlist_list[0]
+
+            else : 
+                print('Stringlistlist is None. Exiting')
+                return None
+
+        else : texture_list = stringlist
+
+        texpart = []
+        for tripart in tripart_set :
+            texstrip = []
+            for tristrip in tripart :
+                tex = [2]
+                for c in tristrip :
+                    tex = c[1:]
+
+                texstrip.append(tex)
+
+            texpart.append(texstrip)
+                
+    def read_tristrip_set(self, file, style='complex', start_off=0x0000) :
         f = file
         t = []
         last = False
 
-        if tpart_flavor is 'fxx' :
-            print('\t Tpart flavor fxx')
-            f.seek(4, 1)
-
         #TODO: Research and handle 0x0, 0x2, and 0x4
-        f.seek(6, 1)
+        f.seek(2, 1)
+        stringlist_index_raw = struct.unpack('h', f.read(2))[0]
+        stringlist_index = stringlist_index_raw - 0x4000 # FIXME: use bitwise for readability
+        print('\t\tStringlist index : {x}'.format(x=stringlist_index))
+    
+        f.seek(2, 1)
         size = struct.unpack('h', f.read(2))[0] * 2
         print('\tTripart size : {x}'.format(x=size))
         f.seek(size, 1)
@@ -254,7 +338,7 @@ class Extractor :
             length = abs(struct.unpack('h', f.read(2))[0])
 
             print('\tTristrip {i}, length {l}'.format(i=i+1, l=length))
-            for j in range(length) :
+            for _ in range(length) :
                 if style == 'complex' :
                     data = list(struct.unpack('hhh', f.read(6)))
                     data = tuple([w+1 for w in data])
@@ -275,18 +359,40 @@ class Extractor :
 
         return (t, last)          
 
-    def write_verts(self, in_vertlist=None) :
-        verts = self.verts if in_vertlist is None else in_vertlist
-        if not self.obj_path : self.obj_path = self.__tk_save_obj()
-        with open(self.obj_path, 'w+') as f :
-            if not verts :
-                print('No verts to write')
-            else :
-                print('Writing verts...', end='')
-                for v in verts :
-                    ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
-                    f.write(ln)
-                print('Done')
+    def read_vertlist(self, start_off=0x0000, file=None) :
+        '''
+        Parses the list of raw floats delimited by some unknown value.
+        Args:
+            param1: self instance reference
+        '''
+        v = []
+        if file is None :    
+            path = self.vert_path
+            f = open(path, 'rb') 
+        else : f = file
+
+        f.seek(start_off)
+
+        f.seek(6, 1)
+        count = struct.unpack('h', f.read(2))[0]
+        print('Reading {x} verts'.format(x=count))
+        f.seek(8, 1)
+        for _ in range(count) :
+            raw_word = f.read(12)
+            if len(raw_word) < 12 :
+                break
+
+            elif raw_word[:4] ==  b'\xff\x00\x00\x00' :
+                break
+
+            word = struct.unpack('fff', raw_word)
+            v.append(word)
+
+            f.seek(4, 1)
+        
+        if file is None : f.close()
+        
+        return v
 
     def write_triparts(self, in_triparts=None) :
         triparts = self.triparts if in_triparts is None else in_triparts
@@ -298,9 +404,9 @@ class Extractor :
                 self.write_tristrips(cur_tristrips=t, file=f, i=i)
                 i += 1
 
-    def write_tristrips(self, cur_tristrips=None, file=None, i=0) :
+    def write_tristrips(self, cur_tristrips, file=None, i=0) :
         
-        tristrips = cur_tristrips if cur_tristrips is not None else self.tristrips
+        tristrips = cur_tristrips
 
         if file is None :
             if not self.obj_path : self.obj_path = self.__tk_save_obj()
@@ -324,6 +430,31 @@ class Extractor :
 
         if file is None : f.close()
 
+    def write_verts(self, in_vertlist=None) :
+        verts = self.verts if in_vertlist is None else in_vertlist
+        if not self.obj_path : self.obj_path = self.__tk_save_obj()
+        with open(self.obj_path, 'w+') as f :
+            if not verts :
+                print('No verts to write')
+            else :
+                print('Writing verts...', end='')
+                for v in verts :
+                    ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
+                    f.write(ln)
+                print('Done')
+
+    def __tk_load_dir(self, filetype=None) :
+        Tk().withdraw()
+        in_path = ''
+
+        if filetype == None :
+            in_path = filedialog.askdirectory(title="Select Media directory")
+
+        else :
+            print('Invalid filetype')
+        
+        return in_path
+
     def __tk_load_bin(self, filetype) :
         """
         Open a file dialog with Tkinter for loading a binary file, handling the file type.
@@ -342,8 +473,8 @@ class Extractor :
 
         # TODO: handle invalid path assignment
         
-        if filetype == 'chunk' :
-            in_path = filedialog.askopenfilename(initialdir=self.bin_dir, title="Select Chunk file")
+        if filetype == 'section' :
+            in_path = filedialog.askopenfilename(initialdir=self.bin_dir, title="Select Section file")
 
         elif filetype == 'vert' :
             in_path = filedialog.askopenfilename(initialdir=self.bin_dir, title="Select Vert file")
@@ -375,217 +506,10 @@ class Extractor :
         return out_path
 
     # Depricated: 
-    def read_triparts_stageobj(self, start_off=0x0000, header=False, part_count_in=1) :
-        '''
-        0x14 (20) byte header. Does not know tripart count.
-        '''
-        t = []
-        path = self.tri_path if self.mode is True else self.chunk_path
-        with open(path, 'rb') as f :
 
-            if header == True: f.seek(start_off + 0x0004)
-            else : f.seek(start_off)
-            
-            #TODO: Find actual part count           
-            part_count = part_count_in           
-            print('Total triparts: {x}'.format(x=part_count))
-
-
-            for _ in range(part_count) :
-                print('Reading tripart {x}'.format(x=_))
-                cur_tripart = self.read_tristrips_complex(file=f)
-                t.append(cur_tripart)
-
-                next_short = f.read(2)
-                if len(next_short) < 2 :            # Break if EOF TODO: look for escape char
-                    print('There are only {x} triparts in the chunk!'.format(x=_+1))
-                    break
-                pad = struct.unpack('h', next_short)[0]
-                if pad is not 0 : f.seek(-2, 1)
-                
-                
-
-        self.triparts = t
-    def read_triparts_prop(self, start_off=0x0000, part_count_in=1) :
-        '''
-        Starting offset 0x14 (20) bytes before 7f7f7fff
-        '''
-        t = []
-        path = self.tri_path if self.mode is True else self.chunk_path
-        part_count = part_count_in
-        with open(path, 'rb') as f :
-            f.seek(start_off + 0x0014)
-            for _ in range(part_count) :
-
-                print('Reading tripart {x}'.format(x=_))
-                cur_tripart = self.read_tristrips_complex(file=f)
-                t.append(cur_tripart)
-                
-                #TODO: clean up 
-                pad = struct.unpack('h', f.read(2))[0]                  # handle potential padding
-                if pad < 2 :
-                    print('There are only {x} triparts in the chunk!'.format(x=_+1))
-                    break
-                
-                print('pad is {x}'.format(x=pad))
-
-                if pad is 0 :
-                    if struct.unpack('f', f.read(4))[0] < 1.5:          # hacky but probably works since
-                        print('End of complex triparts')                # first 8 bytes (float) =~ 2.1
-                        break
-                    else :
-                        f.seek(-4, 1)
-                elif pad is -1 :
-                    if struct.unpack('h', f.read(2))[0] is 0 :
-                        break
-                    else :
-                        print('Escape symbol encountered.')
-                        f.seek(-2, 1)
-                else : f.seek(-2, 1)
-
-        self.triparts = t
-    def read_tristrips_complex(self, start_off=0x0000, file=None) :
-        size_buff = ''
-        data_buff = ''
-        t = []
-
-        if file is None :    
-            path = self.tri_path if self.mode is True else self.chunk_path
-            f = open(path, 'rb')
-        else :
-            f = file
-        
-        f.seek(start_off + 0x0008, 1)
-        tristrip_count = struct.unpack('h', f.read(2))[0]
-        print('Number of tristrips: {x}'.format(x=tristrip_count))
-        for i in range(tristrip_count) :
-            size_buff = f.read(2)
-            if len(size_buff) < 2 :
-                break
-                
-            size = abs(struct.unpack('h', size_buff)[0])
-            points = []
-            for j in range(size) :
-                data_buff = f.read(6)
-                data = list(struct.unpack('hhh', data_buff))
-                data = [w+1 for w in data]
-                point = tuple(data)
-                points.append(point)
-
-            t.append(points)
-            if size == 255 :
-                if struct.unpack('h', f.read(2))[0] == 0 :
-                    break
-
-                else :
-                    f.seek(-2, 1)
-
-            print('Tristrip {i} size {s}: \n{x}\n'.format(i=i, s=size, x=points))
-
-        if file is None : f.close()
-
-        #self.tristrips = t
-        return t
-    def write_obj_old(self) :
-        """
-        Creates a Wavefront obj file that contains the vertex and triangle list.
-        """
-
-        verts = self.verts
-        tris = self.tris
-
-        if not self.obj_path : self.obj_path = self.__tk_save_obj()
-
-
-            
-        if self.obj_path == '' :
-            print('Invalid save path')
-            return
-
-        with open(self.obj_path, 'w+') as f :
-            
-            if not verts :
-                print('No verts to write!')
-            
-            else :
-                print('Extracting verts...')
-                for v in verts :
-                    ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
-                    f.write(ln, end='')
-                print('Done')
-            
-            if not tris :
-                print('No tris to write!')
-
-            else :
-                print('Extracting tris...')
-                for t in tris :
-                    ln = 'f {i0} {i1} {i2}\n'.format(i0=t[0], i1=t[1], i2=t[2])
-                    f.write(ln)
-                print('Done')
-    def old_read_vertlist(self) :
-        #TODO: implement starting offset
-        """
-        Parses the list of raw floats delimited by some unknown value.
-        Args:
-            param1: self instance reference
-
-        Returns: 
-            A list of lists containing local x y z cords
-        """
-        v = []
-
-        with open(self.vert_path, 'rb') as f :
-           while True :
-                word = f.read(16)
-                if len(word) < 4 :
-                    break
-
-                word = struct.unpack('fffi', word)
-                word = list(word)
-                v.append(word)
-
-        self.verts = v
-    def read_tris_slide(self, start_off=0x0000) :
-        """
-        Parses a triangle array into a list. Strips invalid and incorrect triangles.
-
-        Args:
-            param1: self instance reference
-            param2: starting offset for triangle array, after 0xffffff05
-
-        Returns:
-            A list containing tuples of vertex indices
-        """
-
-        data = ''
-        t = []
-        with open(self.tri_path, 'rb') as f :
-            f.seek(start_off + 0x0002)          # accounts for first unknown short
-            size = struct.unpack('h', f.read(2))[0]
-            data = f.read(size * 2)
-
-        if data == '' :
-            print('Could not parse tris - empty data string!')
-            return
-        
-
-        #TODO: Clean up loop. This is bad since i is immutable. Use iterator or something
-        window = data[0: 6]
-        i = 2   
-        while i + 6 <= len(data) :
-            window = data[i: i+6]
-            word_t = struct.unpack('hhh', window)
-            word_l = list(word_t)
-            word = [w+1 for w in word_l]
-            t.append(word)
-            i += 2
-            # TODO: Handle invalid and incorrect tris 
-
-        self.tris = t       
     def read_chunk_old(self, section, tpart_flavor='standard', start_off=0x0000, file=None, nc_pointers=False, voffset=0x0000, toffset=0x0000, head=True) :
         if file is None :    
-            path = self.chunk_path
+            path = self.section_path
             f = open(path, 'rb')
 
         else : f = file
@@ -627,24 +551,140 @@ class Extractor :
         self.triparts = triset
 
         if file is None : f.close()
+    def read_triparts_stageobj(self, start_off=0x0000, header=False, part_count_in=1) :
+        '''
+        0x14 (20) byte header. Does not know tripart count.
+        '''
+        t = []
+        path = self.tri_path if self.mode is True else self.section_path
+        with open(path, 'rb') as f :
+
+            if header == True: f.seek(start_off + 0x0004)
+            else : f.seek(start_off)
+            
+            #TODO: Find actual part count           
+            part_count = part_count_in           
+            print('Total triparts: {x}'.format(x=part_count))
+
+
+            for _ in range(part_count) :
+                print('Reading tripart {x}'.format(x=_))
+                cur_tripart = self.read_tristrips_complex(file=f)
+                t.append(cur_tripart)
+
+                next_short = f.read(2)
+                if len(next_short) < 2 :            # Break if EOF TODO: look for escape char
+                    print('There are only {x} triparts in the chunk!'.format(x=_+1))
+                    break
+                pad = struct.unpack('h', next_short)[0]
+                if pad is not 0 : f.seek(-2, 1)
+                
+                
+
+        self.triparts = t
+    def read_triparts_prop(self, start_off=0x0000, part_count_in=1) :
+        '''
+        Starting offset 0x14 (20) bytes before 7f7f7fff
+        '''
+        t = []
+        path = self.tri_path if self.mode is True else self.section_path
+        part_count = part_count_in
+        with open(path, 'rb') as f :
+            f.seek(start_off + 0x0014)
+            for _ in range(part_count) :
+
+                print('Reading tripart {x}'.format(x=_))
+                cur_tripart = self.read_tristrips_complex(file=f)
+                t.append(cur_tripart)
+                
+                #TODO: clean up 
+                pad = struct.unpack('h', f.read(2))[0]                  # handle potential padding
+                if pad < 2 :
+                    print('There are only {x} triparts in the chunk!'.format(x=_+1))
+                    break
+                
+                print('pad is {x}'.format(x=pad))
+
+                if pad is 0 :
+                    if struct.unpack('f', f.read(4))[0] < 1.5:          # hacky but probably works since
+                        print('End of complex triparts')                # first 8 bytes (float) =~ 2.1
+                        break
+                    else :
+                        f.seek(-4, 1)
+                elif pad is -1 :
+                    if struct.unpack('h', f.read(2))[0] is 0 :
+                        break
+                    else :
+                        print('Escape symbol encountered.')
+                        f.seek(-2, 1)
+                else : f.seek(-2, 1)
+
+        self.triparts = t
+    def read_tristrips_complex(self, start_off=0x0000, file=None) :
+        size_buff = ''
+        data_buff = ''
+        t = []
+
+        if file is None :    
+            path = self.tri_path if self.mode is True else self.section_path
+            f = open(path, 'rb')
+        else :
+            f = file
+        
+        f.seek(start_off + 0x0008, 1)
+        tristrip_count = struct.unpack('h', f.read(2))[0]
+        print('Number of tristrips: {x}'.format(x=tristrip_count))
+        for i in range(tristrip_count) :
+            size_buff = f.read(2)
+            if len(size_buff) < 2 :
+                break
+                
+            size = abs(struct.unpack('h', size_buff)[0])
+            points = []
+            for j in range(size) :
+                data_buff = f.read(6)
+                data = list(struct.unpack('hhh', data_buff))
+                data = [w+1 for w in data]
+                point = tuple(data)
+                points.append(point)
+
+            t.append(points)
+            if size == 255 :
+                if struct.unpack('h', f.read(2))[0] == 0 :
+                    break
+
+                else :
+                    f.seek(-2, 1)
+
+            print('Tristrip {i} size {s}: \n{x}\n'.format(i=i, s=size, x=points))
+
+        if file is None : f.close()
+
+        return t
 
 def main() :
+    #TODO: handle invalid arguments, update vert/tri mode
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
-    parser.add_argument('-c', '--chunk', help='Path to chunk file', type=str)
-    parser.add_argument('-c0', '--coffset', help='Chunk file entry offset', type=lambda x: int(x,0))
-    parser.add_argument('-o', '--obj', help='Path to output obj file', type=str)
-    parser.add_argument('-b', '--bin', help='Path to binary directory', type=str)
+    parser.add_argument('-me', '--mediapath', help='Path to media directory', type=str)
+    parser.add_argument('-m', '--mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
+    parser.add_argument('-s', '--section', help='Path to section file', type=str)
+    parser.add_argument('-so', '--soffset', help='Stringlist file entry offset', type=lambda x: int(x,0))
+    parser.add_argument('-co', '--coffset', help='Chunk file entry offset', type=lambda x: int(x,0))
+    parser.add_argument('-o', '--obj', help='Path to output obj file (vert/tri)', type=str)
+    parser.add_argument('-b', '--bin', help='Path to binary directory (vert/tri)', type=str)
 
+    parser.add_argument('-c', '--chunk', help='(DEPRICATED) Path to chunk file', type=str)
     parser.add_argument('-p', '--pointers', help='(DEPRICATED) Chunk file contains pointers to next chunk', type=bool)
     parser.add_argument('-vo', '--voffset', help='(DEPRICATED) Vertex offset in chunk file (in hex)', type=int)
     parser.add_argument('-to', '--toffset', help='(DEPRICATED) Triangle offset in chunk file (in hex)', type=int)
     parser.add_argument('-v', '--vert', help='(DEPRICATED) Path to vertex list file', type=str)
     parser.add_argument('-t', '--tri', help='(DEPRICATED) Path to triangle list file', type=str)
-    parser.add_argument('-tpi', '--tripartcount', help='(DEPRICATED) Custom number of triparts', type=int)
     args = parser.parse_args()
 
-    extract = Extractor(mode=args.mode, chunk_path=args.chunk, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
+
+    extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
+
+    sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.MAP11)
 
     chunk = extract.read_chunk(usage='vt', section=SectionAddress.MAP11, start_off=args.coffset)
     extract.write_verts(chunk[0])
