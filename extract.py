@@ -7,7 +7,7 @@ import os
 import time
 
 class SectionAddress :
-    DATA    =     0x002D0660
+    DATA    =     0x001D0660
     MDLPL   =     0x00AAFF40
     MDLB1   =     0x00D80280
     MDLB10  =     0x00E56C60
@@ -58,8 +58,11 @@ class Extractor :
         
         self.stringlist_list = []
 
+        self.texpart_list = []
+
         self.verts = []  
         self.triparts = []
+
 
     def parse_stringlist(self, start_off=0x0000, file=None, section=SectionAddress.MAP11) :
         '''
@@ -159,7 +162,7 @@ class Extractor :
             
         else : f = file
             
-        f.seek(start_off)
+        f.seek(start_off + 4)
 
 
         output = []
@@ -249,7 +252,7 @@ class Extractor :
             print('Tripart {x}:'.format(x=i+1))
             tripart_t = self.read_tristrip_set(file=f)
             t.append((tripart_t[0], tripart_t[1]))
-            if tripart_t[1] :
+            if tripart_t[2] :
                 print('Exit from tristrip set reader after tripart {x}'.format(x=i+1))
                 return t
 
@@ -292,33 +295,27 @@ class Extractor :
 
         else : texture_list = stringlist
 
-        texpart = []
+        texpart_set = []
         for tripart in tripart_set :
-            width = 0
-            height = 0
+            print('Tripart texture: ' + str(tripart[1]) + '\t'+ str(texture_list[tripart[1]]))
 
-            print('stringindex ' + str(tripart[1]))
-            print('stringindex ' + str(texture_list[tripart[1]]))
-
-            with open(texture_list[tripart[1]], 'rb') as f_t :
-                f_t.seek(0xc)
-                width = struct.unpack('i', f_t.read(4))[0]
-                height = struct.unpack('i', f_t.read(4))[0]
-
-            texstrip = []
+            texpart = []
             for tristrip in tripart[0] :
-                tex = [2]
+                texstrip = []
                 for c in tristrip :
                     tex = list(c[1:])
-                    tex[0] /= height
-                    tex[1] /= width
+                    tex[0] /= 255
+                    tex[1] /= -255
+                    tex[1] += 1
                     tex = tuple(tex)
+                    texstrip.append(tex)
 
-                texstrip.append(tex)
-
-            texpart.append(texstrip)
+                texpart.append(texstrip)
+            texpart_set.append(texpart)
         
-        return tuple(texpart)
+        self.texpart_list = tuple(texpart_set)
+
+        return tuple(texpart_set)
                 
     def read_tristrip_set(self, file, style='complex', start_off=0x0000) :
         f = file
@@ -370,8 +367,6 @@ class Extractor :
                 else :
                     print('\tIncorrect tripart style argument, exiting....')
                     return (t, True)
-            
-            print('\t\t' + str(strip))
 
             t.append(strip)  
 
@@ -434,32 +429,54 @@ class Extractor :
 
         # TODO: verify normal bug is fixed, make code more readable!
         print('Writing tristrips in part {x}... '.format(x=i), end='')
+
         for t in tristrips :
             for j in range(len(t)-2) :
-                if mode is 'tex' :
-                    if j % 2 == 0 : 
-                        ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
-                    
-                    else :  
-                        ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
-
-                    f.write(ln)
-
+                if j % 2 == 0 : 
+                    ln = 'f {v0} {v1} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
                 
-                else :
-                    if j % 2 == 0 : 
-                        ln = 'f {v0}/{vt0} {v1}/{vt1} {v2}/{vt2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
-                    
-                    else :  
-                        ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
+                else :  
+                    ln = 'f {v1} {v0} {v2}\n'.format(v0=t[j][0], v1=t[j+1][0], v2=t[j+2][0])
 
-                    f.write(ln)
-
+                f.write(ln)
 
 
         print('Done')
 
         if file is None : f.close()
+
+    def write_triparts_texture(self, triparts, file=None, mode=None, i=0) :
+
+        if file is None :
+            if not self.obj_path : self.obj_path = self.__tk_save_obj()
+            f = open(self.obj_path, 'a+')
+        else :
+            f = file
+
+        # TODO: verify normal bug is fixed, make code more readable!
+        print('Writing tristrips (texture) in part {x}... '.format(x=i), end='')
+
+        vt = 1
+        
+        for tp in triparts :
+            for ts in tp[0] :
+                for j in range(len(ts)-2) :
+                    if j % 2 == 0 : 
+                        ln = 'f {v0}/{vt0} {v1}/{vt1} {v2}/{vt2}\n'.format(v0=ts[j][0], vt0=vt, v1=ts[j+1][0], vt1=vt+1, v2=ts[j+2][0], vt2=vt+2)
+                        vt += 1
+                    else :  
+                        ln = 'f {v1}/{vt1} {v0}/{vt0} {v2}/{vt2}\n'.format(v0=ts[j][0], vt0=vt, v1=ts[j+1][0], vt1=vt+1, v2=ts[j+2][0], vt2=vt+2)
+                        vt += 1
+
+                    f.write(ln)
+                vt += 2
+            
+            
+
+        print('Done')
+
+        if file is None : f.close()
+        return vt
 
     def write_verts(self, in_vertlist=None) :
         verts = self.verts if in_vertlist is None else in_vertlist
@@ -473,6 +490,16 @@ class Extractor :
                     ln = 'v {x} {y} {z}\n'.format(x=v[0], y=v[1], z=v[2])
                     f.write(ln)
                 print('Done')
+
+    def write_vt(self, texpart_list) :
+        # TODO implement texpart class variables
+        if not self.obj_path : self.obj_path = self.__tk_save_obj()
+        with open(self.obj_path, 'a+') as f :
+            for texpart in texpart_list :
+                for texlist in texpart :
+                    for tex in texlist :
+                        ln = 'vt {u} {v}\n'.format(u=str(tex[0]), v=str(tex[1]))
+                        f.write(ln)
 
     def __tk_load_dir(self, filetype=None) :
         Tk().withdraw()
@@ -715,16 +742,17 @@ def main() :
 
     extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.MAP11)
+    sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.MDLB4)
 
-    chunk = extract.read_chunk(usage='vt', section=SectionAddress.MAP11, start_off=args.coffset)
+    chunk = extract.read_chunk(usage='vt', section=SectionAddress.MDLB4, start_off=args.coffset)
     
     extract.create_texture_coordinates(triset=chunk[1], stringlist=sl)
 
 
 
     extract.write_verts(chunk[0])
-    extract.write_triparts(chunk[1])
+    extract.write_vt(extract.texpart_list)
+    extract.write_triparts_texture(chunk[1])
 
     
 
