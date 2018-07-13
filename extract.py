@@ -407,7 +407,7 @@ class Extractor :
         
         return v
 
-    def write_triparts(self, in_triparts=None) :
+    def write_triparts(self, in_triparts=None, world_coordinates=None) :
         triparts = self.triparts if in_triparts is None else in_triparts
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
         with open(self.obj_path, 'a+') as f :
@@ -742,9 +742,9 @@ def main() :
 
     extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
 
-    sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.MDLB4)
+    sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.DATA)
 
-    chunk = extract.read_chunk(usage='vt', section=SectionAddress.MDLB4, start_off=args.coffset)
+    chunk = extract.read_chunk(usage='vt', section=SectionAddress.DATA, start_off=args.coffset)
     
     extract.create_texture_coordinates(triset=chunk[1], stringlist=sl)
 
