@@ -24,6 +24,12 @@ class SectionAddress :
     MAP12   =     0x01AD72C0
     MAP11   =     0x01C58640
     MDLR2   =     0x01DD52E0
+    MAP23   =     0x01DF5240
+    MAP22   =     0x01F58FE0
+    MAP21   =     0x020A9B20
+    MAP33   =     0x02206D40
+    MAP32   =     0x0230AD00
+    MAP31   =     0x023C9BC0
     
     MDLR5   =     0x026C5660
     #TODO: Finish filling out
@@ -157,6 +163,11 @@ class Extractor :
     #TODO: make file objects class variables -- data AND section
 
     def read_chunk(self, section, usage='vt', start_off=0x0000, file=None) :
+
+        f = verify_file_arg_b(file)
+
+
+
         if file is None : 
             f = open(self.section_path, 'rb')
             
@@ -183,10 +194,6 @@ class Extractor :
             triset_flavor = self.get_triset_flavor(file=f, start_off=triset_offset)
             output.append(self.read_tripart_set(start_off=triset_offset, flavor=triset_flavor, file=f))
             self.verts = output[-1]
-
-            
-
-        if file is None : f.close()
 
         return output
 
@@ -241,6 +248,7 @@ class Extractor :
         # TODO research header types, usage, etc
         if header is True : 
             f.seek(start_off + 0x000c)
+            #f.seek(4, 1)
 
 
         else : f.seek(start_off, 1)
@@ -417,6 +425,7 @@ class Extractor :
                 self.write_tristrips(cur_tristrips=t, file=f, i=i)
                 i += 1
 
+
     def write_tristrips(self, cur_tristrips, file=None, mode=None, i=0) :
         
         tristrips = cur_tristrips[0]
@@ -444,6 +453,7 @@ class Extractor :
         print('Done')
 
         if file is None : f.close()
+
 
     def write_triparts_texture(self, triparts, file=None, mode=None, i=0) :
 
@@ -719,6 +729,17 @@ class Extractor :
         if file is None : f.close()
 
         return t
+
+
+def verify_file_arg_b(fileobj) :
+    '''
+    Type-check file-like argument. If it's a string, assume it's a path and open file at that path (binary mode). Otherwise return open file handle.
+    TODO: Handle invalid file paths. 
+    '''
+    if isinstance(fileobj, str) :
+        with open(fileobj, 'rb') as f :
+            return f
+    else : return fileobj
 
 def main() :
     #TODO: handle invalid arguments, update vert/tri mode
