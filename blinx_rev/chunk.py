@@ -22,10 +22,38 @@ class Chunk :
     def parse_header(self) :
         f = self.xbe
         f.seek(self.offset)
+
         entry = unpack('i', f.read(4))[0]
 
+        chunk_offset = unpack('i', f.read(4))[0]
+        f.seek(-40, 1)
+
+        vdata_offset = unpack('i', f.read(4))[0]
+        tdata_offset = unpack('i', f.read(4))[0]
+
+        float_array_0 = []
+        for _ in range(6) : float_array_0.append(unpack('f', f.read(4))[0])
+        
+        f.seek(8, 1)
+
+        locrotscale = []
+        for _ in range(9) : float_array_0.append(unpack('f', f.read(4))[0])
+
+        clist_ptr_0 = unpack('i', f.read(4))[0]
+        if clist_ptr_0 == 0 : clist_ptr_0 = None
+
+        clist_ptr_1 = unpack('i', f.read(4))[0]
+        if clist_ptr_1 == 0 : clist_ptr_1 = None
+
         return {
-            'entry' : entry
+            'entry' : entry,
+            'virtual_offset' : chunk_offset,
+            'voffset' : vdata_offset,
+            'toffset' : tdata_offset,
+            'f_array_0' : float_array_0,
+            'world_coords' : locrotscale,
+            'clist_ptr_0' : clist_ptr_0,
+            'clist_ptr_1' : clist_ptr_1
         }
 
 
