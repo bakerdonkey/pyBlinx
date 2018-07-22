@@ -4,7 +4,7 @@ import csv
 
 def section_addresses() :
     addresses = {}
-    with open('../data/sectionaddress.csv', 'r') as csv_file :
+    with open('data/sectionaddress.csv', 'r') as csv_file :
         sectionreader = csv.reader(csv_file)
         next(sectionreader)
         for line in sectionreader :
@@ -16,7 +16,7 @@ def rawaddress(virtaddress, section) :
     Converts a virtual address to a raw address using Blinx's defined section offsets.
     '''
     rawaddress = -1
-    with open('../data/sectionaddress.csv', 'r') as csv_file :
+    with open('data/sectionaddress.csv', 'r') as csv_file :
         section_index = __section_index(section)
         assert(section_index is not None)
         
@@ -37,7 +37,7 @@ def find_section(virtaddress) :
     '''
     Finds the section containg a virtual address.
     '''
-    with open('../data/sectionaddress.csv', 'r') as csv_file :
+    with open('data/sectionaddress.csv', 'r') as csv_file :
         reader = csv.reader(csv_file)
         line = next()
         #TODO: finish
@@ -47,7 +47,7 @@ def __section_index(section) :
     candidate = section.upper()
 
     switcher = {}
-    with open('../data/sectionaddress.csv', 'r') as csv_file :
+    with open('data/sectionaddress.csv', 'r') as csv_file :
         
         reader = csv.reader(csv_file)
         next(reader)            #skip header
