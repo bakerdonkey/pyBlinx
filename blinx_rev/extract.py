@@ -6,34 +6,6 @@ import argparse
 import os
 import time
 
-class SectionAddress :
-    DATA    =     0x001D0660
-    MDLPL   =     0x00AAFF40
-    MDLB1   =     0x00D80280
-    MDLB10  =     0x00E56C60
-    MDLB2   =     0x00F90AA0
-    MDLB3   =     0x01080A20
-    MDLB4   =     0x0115EE60
-    MDLB5   =     0x011CA300
-    MDLB6   =     0x012BF680
-    MDLB8   =     0x01355AE0
-    MDLB9   =     0x01413B80
-    MDLEN   =     0x01485A40
-    MDLB102 =     0x018C1960
-    MAP13   =     0x0191EFE0
-    MAP12   =     0x01AD72C0
-    MAP11   =     0x01C58640
-    MDLR2   =     0x01DD52E0
-    MAP23   =     0x01DF5240
-    MAP22   =     0x01F58FE0
-    MAP21   =     0x020A9B20
-    MAP33   =     0x02206D40
-    MAP32   =     0x0230AD00
-    MAP31   =     0x023C9BC0
-    
-    MDLR5   =     0x026C5660
-    #TODO: Finish filling out
-
     
 class Extractor :
     def __init__(self, mode=0, section_path=None, media_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
@@ -70,7 +42,7 @@ class Extractor :
         self.triparts = []
 
 
-    def parse_stringlist(self, start_off=0x0000, file=None, section=SectionAddress.MAP11) :
+    def parse_stringlist(self, start_off=0x0000, file=None, section=None) :
         '''
         Read a stringlist at a specified offset, store each member in a list. This is very slow, can be improved.
         '''
@@ -709,7 +681,7 @@ class Extractor :
                 
             size = abs(struct.unpack('h', size_buff)[0])
             points = []
-            for j in range(size) :
+            for _ in range(size) :
                 data_buff = f.read(6)
                 data = list(struct.unpack('hhh', data_buff))
                 data = [w+1 for w in data]
@@ -740,42 +712,3 @@ def verify_file_arg_b(fileobj) :
         with open(fileobj, 'rb') as f :
             return f
     else : return fileobj
-
-def main() :
-    #TODO: handle invalid arguments, update vert/tri mode
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-me', '--mediapath', help='Path to media directory', type=str)
-    parser.add_argument('-m', '--mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
-    parser.add_argument('-s', '--section', help='Path to section file', type=str)
-    parser.add_argument('-so', '--soffset', help='Stringlist file entry offset', type=lambda x: int(x,0))
-    parser.add_argument('-co', '--coffset', help='Chunk file entry offset', type=lambda x: int(x,0))
-    parser.add_argument('-o', '--obj', help='Path to output obj file (vert/tri)', type=str)
-    parser.add_argument('-b', '--bin', help='Path to binary directory (vert/tri)', type=str)
-
-    parser.add_argument('-c', '--chunk', help='(DEPRICATED) Path to chunk file', type=str)
-    parser.add_argument('-p', '--pointers', help='(DEPRICATED) Chunk file contains pointers to next chunk', type=bool)
-    parser.add_argument('-vo', '--voffset', help='(DEPRICATED) Vertex offset in chunk file (in hex)', type=int)
-    parser.add_argument('-to', '--toffset', help='(DEPRICATED) Triangle offset in chunk file (in hex)', type=int)
-    parser.add_argument('-v', '--vert', help='(DEPRICATED) Path to vertex list file', type=str)
-    parser.add_argument('-t', '--tri', help='(DEPRICATED) Path to triangle list file', type=str)
-    args = parser.parse_args()
-
-
-    extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
-
-    sl = extract.parse_stringlist(start_off=args.soffset, section=SectionAddress.DATA)
-
-    chunk = extract.read_chunk(usage='vt', section=SectionAddress.DATA, start_off=args.coffset)
-    
-    extract.create_texture_coordinates(triset=chunk[1], stringlist=sl)
-
-
-
-    extract.write_verts(chunk[0])
-    extract.write_vt(extract.texpart_list)
-    extract.write_triparts_texture(chunk[1])
-
-    
-
-if __name__ == '__main__' :
-    main()

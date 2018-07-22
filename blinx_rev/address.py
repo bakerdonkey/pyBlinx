@@ -11,24 +11,30 @@ def section_addresses() :
             addresses[line[0]] = (int(line[1], 16), int(line[2], 16))
     return addresses
 
-def rawaddress(virtaddress, section) :
+def rawaddress(virtaddress, section, addresses=None) :
     '''
     Converts a virtual address to a raw address using Blinx's defined section offsets.
     '''
     rawaddress = -1
-    with open('data/sectionaddress.csv', 'r') as csv_file :
-        section_index = __section_index(section)
-        assert(section_index is not None)
-        
-        sectionreader = csv.reader(csv_file)
-        line = next((x for i, x in enumerate(sectionreader) if i == section_index), None)
-        virtbase = int(line[1], 16)
-        rawbase = int(line[2], 16)
+    if addresses is None :
+        with open('data/sectionaddress.csv', 'r') as csv_file :
+            section_index = __section_index(section)
+            assert(section_index is not None)
+            
+            sectionreader = csv.reader(csv_file)
+            line = next((x for i, x in enumerate(sectionreader) if i == section_index), None)
+            virtbase = int(line[1], 16)
+            rawbase = int(line[2], 16)
+    else :
+        #TODO: verify addresses is valid
 
-        offset = virtaddress - virtbase
-        rawaddress = rawbase + offset
+        print(hex(addresses.get(section)[0]) + ', ' + hex(addresses.get(section)[1]))
 
-        print('index ' + str(section_index))
+        virtbase = addresses.get(section)[0]
+        rawbase = addresses.get(section)[1]
+
+    offset = virtaddress - virtbase
+    rawaddress = rawbase + offset
 
     return rawaddress
          
@@ -40,7 +46,7 @@ def find_section(virtaddress) :
     with open('data/sectionaddress.csv', 'r') as csv_file :
         reader = csv.reader(csv_file)
         line = next()
-        #TODO: finish
+        #TODO: finish!
 
 
 def __section_index(section) :

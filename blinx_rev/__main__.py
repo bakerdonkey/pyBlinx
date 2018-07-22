@@ -1,11 +1,14 @@
 from extract import Extractor
+from chunk import Chunk
 from address import section_addresses
 import argparse
 
 
 def main() :
-    #TODO: handle invalid arguments, update vert/tri mode
+    #TODO: Restructure
     parser = argparse.ArgumentParser()
+    parser.add_argument('xbe', help='Path to xbe', type=str)
+
     parser.add_argument('-me', '--mediapath', help='Path to media directory', type=str)
     parser.add_argument('-m', '--mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
     parser.add_argument('-s', '--section', help='Path to section file', type=str)
@@ -24,20 +27,20 @@ def main() :
 
     sections = section_addresses()
 
-
-    extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
-
-    sl = extract.parse_stringlist(start_off=args.soffset, section=sections.get('data'))
-
-    chunk = extract.read_chunk(usage='vt', section=sections.get('data'), start_off=args.coffset)
-    
-    extract.create_texture_coordinates(triset=chunk[1], stringlist=sl)
+    with open(args.xbe, 'rb') as xbe :
+        chunk = Chunk(xbe, 0x1D86334, 'MAP11')
+        print(chunk.header)
 
 
+    #extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
+    #sl = extract.parse_stringlist(start_off=args.soffset, section=sections.get('data')[0])
+    #chunk = extract.read_chunk(usage='vt', section=sections.get('data')[0], start_off=args.coffset)
+    #extract.create_texture_coordinates(triset=chunk[1], stringlist=sl)
+    #extract.write_verts(chunk[0])
+    #extract.write_vt(extract.texpart_list)
+    #extract.write_triparts_texture(chunk[1])
 
-    extract.write_verts(chunk[0])
-    extract.write_vt(extract.texpart_list)
-    extract.write_triparts_texture(chunk[1])
+
 
 if __name__ == '__main__' :
     main()
