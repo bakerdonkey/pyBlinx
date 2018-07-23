@@ -27,9 +27,6 @@ def rawaddress(virtaddress, section, addresses=None) :
             rawbase = int(line[2], 16)
     else :
         #TODO: verify addresses is valid
-
-        print(hex(addresses.get(section)[0]) + ', ' + hex(addresses.get(section)[1]))
-
         virtbase = addresses.get(section)[0]
         rawbase = addresses.get(section)[1]
 

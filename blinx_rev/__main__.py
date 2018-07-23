@@ -25,11 +25,11 @@ def main() :
     parser.add_argument('-t', '--tri', help='(DEPRICATED) Path to triangle list file', type=str)
     args = parser.parse_args()
 
-    sections = section_addresses()
-
     with open(args.xbe, 'rb') as xbe :
         chunk = Chunk(xbe, 0x1D86334, 'MAP11')
-        print(chunk.header)
+        chunk.parse_vertices()
+        for v in chunk.vertices :
+            print(v)
 
 
     #extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)
