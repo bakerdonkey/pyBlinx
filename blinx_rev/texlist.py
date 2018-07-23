@@ -53,11 +53,42 @@ class Texlist :
         self.strlist = s
         return s
 
-    def strlist_to_path(self, mediapath) :
-        if self.strlist is None : print('Stringlist not parsed, can not convert to pathlist')
+    #TODO: implement game-defined materials
+    def write_mtl(self, file, mediapath) :
+        f = verify_file_arg_o(file)
+        pathlist = self.strlist_to_pathlist(mediapath)
+        matlist = self.strlist_to_matlist()
+        
+        i = 0
+        for mat in matlist :
+            path = pathlist[i] 
+            f.write('newmtl {}\n'.format(mat))
+            f.write('illum 1\n')
+            f.write('map_Kd {}\n\n'.format(path))
+            i += 1
+
+
+
+    def strlist_to_pathlist(self, mediapath) :
+        if self.strlist is None : 
+            print('Stringlist not parsed, can not convert to pathlist')
+            return None
+        
         strlist = self.strlist
         pathlist = []
         for s in strlist :
-            s = mediapath + '/' + s + '.dds'
-            pathlist.append(s)
+            p = mediapath + '/' + s + '.dds'
+            pathlist.append(p)
         return pathlist
+
+    def strlist_to_matlist(self) :
+        if self.strlist is None : 
+            print('Stringlist not parsed, can not convert to material list')
+            return None
+        
+        strlist = self.strlist
+        matlist = []
+        for s in strlist :
+            m = hex(self.offset) + s
+            matlist.append(m)
+        return matlist

@@ -6,7 +6,7 @@ import argparse
 
 
 def main() :
-    #TODO: Restructure
+    #TODO: Restructure, clean up extra arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('xbe', help='Path to xbe', type=str)
 
@@ -29,6 +29,9 @@ def main() :
     with open(args.xbe, 'rb') as xbe :
         texlist = Texlist(xbe, 0x1C58AA0, 'MAP11')
         texlist.parse_strlist()
+
+        with open('../Desktop/outie.mtl', 'w+') as m :
+            texlist.write_mtl(m, args.mediapath)
 
 #        chunk = Chunk(xbe, 0x1D86334, 'MAP11')
 #        chunk.parse_vertices()
