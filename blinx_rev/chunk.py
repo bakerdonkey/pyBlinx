@@ -76,7 +76,6 @@ class Chunk :
         '''
         f = self.xbe
         f.seek(self.voffset + 6)
-        
         count = unpack('h', f.read(2))[0]
         f.seek(8, 1)
 
@@ -141,6 +140,7 @@ class Chunk :
         # TODO: Handle chunks with multiple triangle data regions better
         tripart_size = unpack('h', f.read(2))[0] * 2
         f.seek(tripart_size, 1) 
+        tripart_end = f.tell()
         esc_candidate = f.read(4)
         if esc_candidate is b'\xff\x00\x00\x00' :  escape = True # Escape symbol
         if unpack('f', esc_candidate)[0] < 1.5 : escape = True    # The first four bytes of tpart headers is a float ~2.0. Hacky, but works
@@ -164,6 +164,7 @@ class Chunk :
 
             t.append(strip)
 
+        f.seek(tripart_end)
         return (t, texlist_index, escape)
 
     def write_vertices(self, file) :
@@ -178,13 +179,17 @@ class Chunk :
                 ln = 'v {} {} {}\n'.format(v[0], v[1], v[2])
                 f.write(ln)
 
-    def write_triangles(self, file) : 
+    def write_triangles(self, file, matlist=None) : 
         f = verify_file_arg_o(file)
 
         #TODO: implement material writing
         vt = 1
         triangles = self.triangles
         for tp in triangles :
+            if matlist is not None :
+                ln = 'usemtl {}\n'.format(matlist[tp[1]])
+                f.write(ln)
+
             for ts in tp[0] :
                 for c in range(len(ts) - 2) :
                     if c % 2 == 0 : ln = 'f {v0}/{vt0} {v1}/{vt1} {v2}/{vt2}\n'.format(v0=ts[c][0], vt0=vt, v1=ts[c+1][0], vt1=vt+1, v2=ts[c+2][0], vt2=vt+2)

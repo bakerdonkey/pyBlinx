@@ -22,6 +22,8 @@ class Texlist :
 
         self.strlist = None
 
+        self.matlist = None
+
 
     def parse_header(self) :
         f = self.xbe
@@ -63,7 +65,7 @@ class Texlist :
         for mat in matlist :
             path = pathlist[i] 
             f.write('newmtl {}\n'.format(mat))
-            f.write('illum 1\n')
+            f.write('Kd 0.8 0.8 0.8\n')
             f.write('map_Kd {}\n\n'.format(path))
             i += 1
 
@@ -91,4 +93,6 @@ class Texlist :
         for s in strlist :
             m = hex(self.offset) + s
             matlist.append(m)
+
+        self.matlist = matlist
         return matlist

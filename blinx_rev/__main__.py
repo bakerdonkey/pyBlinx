@@ -27,20 +27,22 @@ def main() :
     args = parser.parse_args()
 
     with open(args.xbe, 'rb') as xbe :
-        texlist = Texlist(xbe, 0x1C58AA0, 'MAP11')
+        texlist = Texlist(xbe, 0xDAE6A8, 'MDLB1')
         texlist.parse_strlist()
 
         with open('../Desktop/outie.mtl', 'w+') as m :
-            texlist.write_mtl(m, args.mediapath)
+            texlist.write_mtl(m, 'C:/Users/Sam/blinx/media')
 
-#        chunk = Chunk(xbe, 0x1D86334, 'MAP11')
-#        chunk.parse_vertices()
-#        chunk.parse_triangles()
+        chunk = Chunk(xbe, 0xDE019C, 'MDLB1')
+        chunk.parse_vertices()
+        chunk.parse_triangles()
 
-#        with open(args.obj, 'w+') as f :
-#            chunk.write_vertices(f)
-#            chunk.write_texcoords(f)
-#            chunk.write_triangles(f)
+        with open('../Desktop/outie.obj', 'w+') as f :
+            f.write('mtllib outie.mtl\n')
+            f.write('o im_outie\n')
+            chunk.write_vertices(f)
+            chunk.write_texcoords(f)
+            chunk.write_triangles(f, matlist=texlist.matlist)
 
         
 
