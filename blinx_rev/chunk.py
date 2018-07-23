@@ -33,6 +33,8 @@ class Chunk :
         f = self.xbe
         f.seek(self.offset)
 
+        print('Parsing chunk header at {}... '.format(hex(self.offset)), end='')
+
         entry = unpack('i', f.read(4))[0]
 
         chunk_offset = unpack('i', f.read(4))[0]
@@ -55,6 +57,8 @@ class Chunk :
         clist_ptr_1 = unpack('i', f.read(4))[0]
         if clist_ptr_1 == 0 : clist_ptr_1 = None
 
+        print('Done')
+
         return {
             'entry' : entry,
             'virtual_offset' : chunk_offset,
@@ -76,34 +80,50 @@ class Chunk :
         count = unpack('h', f.read(2))[0]
         f.seek(8, 1)
 
+        print('Parsing {} vertices at {}... '.format(count, hex(self.voffset)), end='')
+
+
         v = []
         for _ in range(count) :
             word = unpack('fff', f.read(12))
             v.append(word)
             f.seek(4, 1)
         
+        print('Done')
+
         self.vertices = v
         return v
 
-    def parse_triangles(self, part_count) :
+    def parse_triangles(self) :
+        '''
+        Read tripart list from xbe. Returns a list of tuples (tripart, texlist index) as defined in parse_tripart() without escape flag
+        '''
         f = self.xbe
         f.seek(self.toffset)
 
-        # TODO: Research header types and usage.
-        flavor = unpack('h', f.read(2))
-        header_size = unpack('h', f.read(2))
+        print('Parsing triangles at {}... '.format(hex(self.toffset)))
+
+        # TODO: Research header flavors and usage.
+        # flavor = unpack('h', f.read(2))
+        f.seek(2, 1)
+        header_size = unpack('h', f.read(2))[0] * 2
         f.seek(header_size, 1)
 
         t = []
 
+        i = 0
         while(True) :
+            print('\tParsing tripart {}'.format(i))
+            i += 1
+
             tripart = self.parse_tripart()
             t.append((tripart[0], tripart[1]))
             if tripart[2] : break
-
+            
+        print('Done')
+        self.triangles = t
+        return t
         
-
-
     def parse_tripart(self) :
         '''
         Reads tripart. Returns tuple (tripart, texlist index, last) where tripart is a list of tuples (vertex index, tex_x, tex_y),
@@ -118,14 +138,72 @@ class Chunk :
         f.seek(2, 1)
         
         # Check if last tripart 
+        # TODO: Handle chunks with multiple triangle data regions better
         tripart_size = unpack('h', f.read(2))[0] * 2
         f.seek(tripart_size, 1) 
-        if f.read(4) is b'\xff\x00\x00\x00' :  escape = True # Escape symbol
-        f.read(-(tripart_size + 4), 1)
+        esc_candidate = f.read(4)
+        if esc_candidate is b'\xff\x00\x00\x00' :  escape = True # Escape symbol
+        if unpack('f', esc_candidate)[0] < 1.5 : escape = True    # The first four bytes of tpart headers is a float ~2.0. Hacky, but works
+        f.seek(-(tripart_size + 4), 1)
 
-        #TODO finish
+        t_length = unpack('h', f.read(2))[0]
+        for i in range(t_length) :
+            strip = []
+            s_length = abs(unpack('h', f.read(2))[0])
 
-        return (None, texlist_index, escape)
+            print('\t\tParsing tristrip {} of size {}'.format(i, s_length))
+
+            for _ in range(s_length) :
+                raw_point = list(unpack('hhh', f.read(6)))
+                raw_point[0] += 1               #TODO: make more pythonic and readable
+                raw_point[1] /= 255.0
+                raw_point[2] /= -255.0
+                raw_point[2] += 1.0
+                data_point = tuple(raw_point)
+                strip.append(data_point)
+
+            t.append(strip)
+
+        return (t, texlist_index, escape)
+
+    def write_vertices(self, file) :
+        f = verify_file_arg_o(file)
+
+        verts = self.vertices
+        print('Writing vertices to {}'.format(f.name))
+        if not verts :
+            print('\tNo vertices found!')
+        else :
+            for v in verts :
+                ln = 'v {} {} {}\n'.format(v[0], v[1], v[2])
+                f.write(ln)
+
+    def write_triangles(self, file) : 
+        f = verify_file_arg_o(file)
+
+        #TODO: implement material writing
+        vt = 1
+        triangles = self.triangles
+        for tp in triangles :
+            for ts in tp[0] :
+                for c in range(len(ts) - 2) :
+                    if c % 2 == 0 : ln = 'f {v0}/{vt0} {v1}/{vt1} {v2}/{vt2}\n'.format(v0=ts[c][0], vt0=vt, v1=ts[c+1][0], vt1=vt+1, v2=ts[c+2][0], vt2=vt+2)
+                    else :  ln = 'f {v1}/{vt1} {v0}/{vt0} {v2}/{vt2}\n'.format(v0=ts[c][0], vt0=vt, v1=ts[c+1][0], vt1=vt+1, v2=ts[c+2][0], vt2=vt+2)
+                    vt += 1
+                    f.write(ln)
+                vt += 2
+
+    def write_texcoords(self, file) :
+        f = verify_file_arg_o(file)
+        triangles = self.triangles
+        for tp in triangles :
+            for ts in tp[0] :
+                for c in ts :
+                    vt = list(c[1:])
+                    ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
+                    f.write(ln)
+
+    
 
 def verify_file_arg_b(fileobj) :
     '''
@@ -135,6 +213,18 @@ def verify_file_arg_b(fileobj) :
     '''
     if isinstance(fileobj, str) :
         with open(fileobj, 'rb') as f :
+            return f
+
+    else : return fileobj
+
+def verify_file_arg_o(fileobj) :
+    '''
+    Type-check output file-like argument. If string, assume path and open file at that path (text append mode). Otherwise return 
+    open file handle.
+    TODO: Handle invalid file paths. 
+    '''
+    if isinstance(fileobj, str) :
+        with open(fileobj, 'a+') as f :
             return f
 
     else : return fileobj

@@ -28,8 +28,14 @@ def main() :
     with open(args.xbe, 'rb') as xbe :
         chunk = Chunk(xbe, 0x1D86334, 'MAP11')
         chunk.parse_vertices()
-        for v in chunk.vertices :
-            print(v)
+        chunk.parse_triangles()
+
+        with open(args.obj, 'a+') as f :
+            chunk.write_vertices(f)
+            chunk.write_texcoords(f)
+            chunk.write_triangles(f)
+
+        
 
 
     #extract = Extractor(section_path=args.section, media_path=args.mediapath, vert_path=args.vert, tri_path=args.tri, obj_path=args.obj, bin_dir=args.bin)

@@ -346,7 +346,7 @@ class Extractor :
                 
                 else :
                     print('\tIncorrect tripart style argument, exiting....')
-                    return (t, True)
+                    return (t, stringlist_index, True)
 
             t.append(strip)  
 
@@ -474,7 +474,7 @@ class Extractor :
                 print('Done')
 
     def write_vt(self, texpart_list) :
-        # TODO implement texpart class variables
+        # TODO implement texpart instance variables
         if not self.obj_path : self.obj_path = self.__tk_save_obj()
         with open(self.obj_path, 'a+') as f :
             for texpart in texpart_list :
