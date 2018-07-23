@@ -1,5 +1,6 @@
 from extract import Extractor
 from chunk import Chunk
+from texlist import Texlist
 from address import section_addresses
 import argparse
 
@@ -26,14 +27,17 @@ def main() :
     args = parser.parse_args()
 
     with open(args.xbe, 'rb') as xbe :
-        chunk = Chunk(xbe, 0x1D86334, 'MAP11')
-        chunk.parse_vertices()
-        chunk.parse_triangles()
+        texlist = Texlist(xbe, 0x1C58AA0, 'MAP11')
+        texlist.parse_strlist()
 
-        with open(args.obj, 'a+') as f :
-            chunk.write_vertices(f)
-            chunk.write_texcoords(f)
-            chunk.write_triangles(f)
+#        chunk = Chunk(xbe, 0x1D86334, 'MAP11')
+#        chunk.parse_vertices()
+#        chunk.parse_triangles()
+
+#        with open(args.obj, 'w+') as f :
+#            chunk.write_vertices(f)
+#            chunk.write_texcoords(f)
+#            chunk.write_triangles(f)
 
         
 

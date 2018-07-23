@@ -8,16 +8,16 @@ class Chunk :
     section_table = section_addresses()
 
 
-    def __init__(self, xbe, entry_offset, section, texarray=None) :
+    def __init__(self, xbe, entry_offset, section, texlist=None) :
         self.xbe = verify_file_arg_b(xbe)
         
         self.offset = rawaddress(entry_offset, section, Chunk.section_table)
         
-        self.texarray = texarray
+        self.texlist = texlist
 
         self.section = section
 
-        self.header = self.parse_header() #TODO: parse header
+        self.header = self.parse_header()
 
         self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
         self.vertices = None
