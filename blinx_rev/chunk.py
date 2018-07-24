@@ -1,7 +1,9 @@
 from struct import unpack
+from texlist import Texlist
 from address import section_addresses
 from address import rawaddress
-
+from helpers import verify_file_arg_o
+from helpers import verify_file_arg_b
 
 class Chunk :
     #TODO: reference a global, not the function to improve clearity.
@@ -18,6 +20,8 @@ class Chunk :
         self.section = section
 
         self.header = self.parse_header()
+
+        self.name = 'ch_' + self.section + '_' + hex(self.header['virtual_offset'])
 
         self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
         self.vertices = None
@@ -69,6 +73,22 @@ class Chunk :
             'clist_ptr_0' : clist_ptr_0,
             'clist_ptr_1' : clist_ptr_1
         }
+
+    def parse(self) :
+        v = self.parse_vertices()
+        t = self.parse_triangles()
+        return (v, t)
+
+    def write(self, file, texlist=None) :
+        f = verify_file_arg_o(file, usage='w+')
+        if texlist is not None :
+            f.write('mtllib {}.mtl\n'.format(texlist.name))
+
+        f.write('o {}\n'.format(self.name))
+        self.write_vertices(f)
+        self.write_texcoords(f)
+        self.write_triangles(f, texlist.matlist)
+
 
     def parse_vertices(self) :
         '''
@@ -207,29 +227,3 @@ class Chunk :
                     vt = list(c[1:])
                     ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
                     f.write(ln)
-
-    
-
-def verify_file_arg_b(fileobj) :
-    '''
-    Type-check file-like argument. If it's a string, assume it's a path and open file at that path (binary mode). Otherwise return 
-    open file handle.
-    TODO: Handle invalid file paths. 
-    '''
-    if isinstance(fileobj, str) :
-        with open(fileobj, 'rb') as f :
-            return f
-
-    else : return fileobj
-
-def verify_file_arg_o(fileobj) :
-    '''
-    Type-check output file-like argument. If string, assume path and open file at that path (text append mode). Otherwise return 
-    open file handle.
-    TODO: Handle invalid file paths. 
-    '''
-    if isinstance(fileobj, str) :
-        with open(fileobj, 'a+') as f :
-            return f
-
-    else : return fileobj

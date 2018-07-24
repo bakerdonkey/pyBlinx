@@ -1,8 +1,8 @@
 from struct import unpack
 from address import section_addresses
 from address import rawaddress
-from chunk import verify_file_arg_b
-from chunk import verify_file_arg_o
+from helpers import verify_file_arg_o
+from helpers import verify_file_arg_b
 
 class Texlist :
     section_table = section_addresses()
@@ -23,6 +23,10 @@ class Texlist :
         self.strlist = None
 
         self.matlist = None
+
+        self.pathlist = None
+
+        self.name = 'tl_'+section+'_'+hex(self.offset)
 
 
     def parse_header(self) :
@@ -66,6 +70,7 @@ class Texlist :
             path = pathlist[i] 
             f.write('newmtl {}\n'.format(mat))
             f.write('Kd 0.8 0.8 0.8\n')
+            f.write('Ks 0.0 0.0 0.0\n')
             f.write('map_Kd {}\n\n'.format(path))
             i += 1
 
@@ -81,6 +86,8 @@ class Texlist :
         for s in strlist :
             p = mediapath + '/' + s + '.dds'
             pathlist.append(p)
+        
+        self.pathlist = pathlist
         return pathlist
 
     def strlist_to_matlist(self) :
