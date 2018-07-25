@@ -11,6 +11,7 @@ def main() :
     parser = ArgumentParser()
     parser.add_argument('-d', '--directory', help='Path to Blinx directory', type=str)
     parser.add_argument('-o', '--out', help='Path to output directory', type=str)
+    parser.add_argument('-s', '--section', help='Section containing chunk', type=str)
     parser.add_argument('-co', '--coffset', help='Chunk entry offset (virtual address)', type=lambda x: int(x,16))
     parser.add_argument('-so', '--soffset', help='Stringlist file entry offset (virtual address)', type=lambda x: int(x,16))
 
@@ -33,16 +34,20 @@ def main() :
 
     in_directory = os.path.abspath(args.directory) if args.directory is not None else __tk_load_dir('base')
     out_directory = os.path.abspath(args.out) if args.out is not None else __tk_load_dir('out')
-    
+
+    sect = 'MDLB1' if args.section is None else args.section
+
+    coffset = 0xDE9464 if args.coffset is None else args.coffset
+    soffset = 0xD80280 if args.soffset is None else args.soffset
 
     with open(in_directory + '/default.xbe', 'rb') as xbe :
-        texlist = Texlist(xbe, 0xDAE6A8, 'MDLB1')
+        texlist = Texlist(xbe, soffset, sect)
         texlist.parse_strlist()
 
         with open('{}/{}.mtl'.format(out_directory, texlist.name), 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
-        chunk = Chunk(xbe, 0xDE019C, 'MDLB1')
+        chunk = Chunk(xbe, coffset, sect)
 #        chunk.parse_vertices()
 #        chunk.parse_triangles()
         chunk.parse()
