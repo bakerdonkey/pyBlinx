@@ -1,4 +1,5 @@
 from chunk import Chunk
+from chunklist import Chunklist
 from texlist import Texlist
 from address import section_addresses
 from argparse import ArgumentParser
@@ -35,7 +36,7 @@ def main() :
     in_directory = os.path.abspath(args.directory) if args.directory is not None else __tk_load_dir('base')
     out_directory = os.path.abspath(args.out) if args.out is not None else __tk_load_dir('out')
 
-    sect = 'MDLB1' if args.section is None else args.section
+    sect = 'MAP11' if args.section is None else args.section
 
     coffset = 0xDE9464 if args.coffset is None else args.coffset
     soffset = 0xD80280 if args.soffset is None else args.soffset
@@ -47,18 +48,26 @@ def main() :
         with open('{}/{}.mtl'.format(out_directory, texlist.name), 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
-        chunk = Chunk(xbe, coffset, sect)
-#        chunk.parse_vertices()
-#        chunk.parse_triangles()
-        chunk.parse()
+
+        chunklist = Chunklist(xbe, coffset, sect, texlist)
+        chunklist.discover_chunks()
+        chunklist.parse_all_chunks()
+        with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
+            chunklist.write(f, texlist=texlist, outdir=out_directory)
+
+
+#        chunk = Chunk(xbe, coffset, sect)
+##        chunk.parse_vertices()
+##        chunk.parse_triangles()
+#        chunk.parse()
         
-        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
-            chunk.write(f, texlist)
-#            f.write('mtllib outie.mtl\n')
-#            f.write('o im_outie\n')
-#            chunk.write_vertices(f)
-#            chunk.write_texcoords(f)
-#            chunk.write_triangles(f, matlist=texlist.matlist)
+#        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
+#            chunk.write(f, texlist)
+##            f.write('mtllib outie.mtl\n')
+##            f.write('o im_outie\n')
+##            chunk.write_vertices(f)
+##            chunk.write_texcoords(f)
+##            chunk.write_triangles(f, matlist=texlist.matlist)
 
 def __tk_load_dir(dir_type) :
     Tk().withdraw()

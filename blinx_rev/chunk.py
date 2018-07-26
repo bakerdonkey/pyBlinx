@@ -10,7 +10,7 @@ class Chunk :
     section_table = section_addresses()
 
 
-    def __init__(self, xbe, entry_offset, section, texlist=None) :
+    def __init__(self, xbe, entry_offset, section, texlist=None, full=True) :
         self.xbe = verify_file_arg_b(xbe)
         
         self.offset = rawaddress(entry_offset, section, Chunk.section_table)
@@ -28,6 +28,9 @@ class Chunk :
 
         self.toffset = rawaddress(self.header['toffset'], section, Chunk.section_table)
         self.triangles = None
+
+        if full is True :
+            self.vertices, self.triangles = self.parse()
 
     def parse_header(self) :
         '''
@@ -77,11 +80,11 @@ class Chunk :
     def parse(self) :
         v = self.parse_vertices()
         t = self.parse_triangles()
-        return (v, t)
+        return v, t
 
-    def write(self, file, texlist=None) :
+    def write(self, file, texlist=None, clist=False) :
         f = verify_file_arg_o(file, usage='w+')
-        if texlist is not None :
+        if texlist is not None and clist is False :
             f.write('mtllib {}.mtl\n'.format(texlist.name))
 
         f.write('o {}\n'.format(self.name))

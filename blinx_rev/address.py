@@ -34,7 +34,19 @@ def rawaddress(virtaddress, section, addresses=None) :
     rawaddress = rawbase + offset
 
     return rawaddress
-         
+
+def virtaddress(rawaddress, section, addresses) :
+
+    virtaddress = -1
+    
+    virtbase = addresses.get(section)[0]
+    rawbase = addresses.get(section)[1]
+
+    offset = rawaddress - rawbase
+    virtaddress = rawbase + offset
+
+    return virtaddress
+
 #TODO: Make more pythonic. Use a generator or something clever.
 def find_section(virtaddress) :
     '''
