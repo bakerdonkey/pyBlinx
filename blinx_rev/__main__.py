@@ -55,14 +55,16 @@ def main() :
         with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
             chunklist.write(f, texlist=texlist, outdir=out_directory)
 
-
 #        chunk = Chunk(xbe, coffset, sect)
+#        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
+#           chunk.write(f, texlist)
+
+
+
 ##        chunk.parse_vertices()
 ##        chunk.parse_triangles()
-#        chunk.parse()
-        
-#        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
-#            chunk.write(f, texlist)
+##        chunk.parse()
+
 ##            f.write('mtllib outie.mtl\n')
 ##            f.write('o im_outie\n')
 ##            chunk.write_vertices(f)

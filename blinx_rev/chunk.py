@@ -4,6 +4,7 @@ from address import section_addresses
 from address import rawaddress
 from helpers import verify_file_arg_o
 from helpers import verify_file_arg_b
+from world_transform import transform
 
 class Chunk :
     #TODO: reference a global, not the function to improve clearity.
@@ -30,7 +31,7 @@ class Chunk :
         self.triangles = None
 
         if full is True :
-            self.vertices, self.triangles = self.parse()
+            self.vertices, self.triangles = self.parse(world=True)
 
     def parse_header(self) :
         '''
@@ -77,8 +78,8 @@ class Chunk :
             'clist_ptr_1' : clist_ptr_1
         }
 
-    def parse(self) :
-        v = self.parse_vertices()
+    def parse(self, world=True) :
+        v = self.parse_vertices(world=world)
         t = self.parse_triangles()
         return v, t
 
@@ -93,7 +94,7 @@ class Chunk :
         self.write_triangles(f, texlist.matlist)
 
 
-    def parse_vertices(self) :
+    def parse_vertices(self, world=True) :
         '''
         Reads vertex list from xbe. Returns a list[count], where each element is a tuple[3] denoting xyz.
         '''
@@ -107,14 +108,37 @@ class Chunk :
 
         v = []
         for _ in range(count) :
-            word = unpack('fff', f.read(12))
-            v.append(word)
+            word = list(unpack('fff', f.read(12)))
+
+            w = self.header['world_coords']
+            word[0] += w[0]
+            word[1] += w[1]
+            word[2] += w[2]
+
+
+            v.append(tuple(word))
             f.seek(4, 1)
-        
+
+
+
+
         print('Done')
 
         self.vertices = v
         return v
+
+    def apply_world(self) :
+        if self.vertices is None :
+            print('No verts to apply world coords to')
+            return
+        
+        for v in self.vertices :
+            ve = transform(v, self.header['world_coords'])
+
+            print('applying world {} to {} = {}'.format(self.header['world_coords'], v, ve))
+
+            v = ve
+
 
     def parse_triangles(self) :
         '''
@@ -174,7 +198,7 @@ class Chunk :
             strip = []
             s_length = abs(unpack('h', f.read(2))[0])
 
-            print('\t\tParsing tristrip {} of size {}'.format(i, s_length))
+            #print('\t\tParsing tristrip {} of size {}'.format(i, s_length))
 
             for _ in range(s_length) :
                 raw_point = list(unpack('hhh', f.read(6)))

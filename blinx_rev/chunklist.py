@@ -27,10 +27,10 @@ class Chunklist :
 
         self.name = 'cl_' + self.section + '_' + hex(self.offset)
 
- #       for k,v in self.header.items() :
- #           if isinstance(v, int) :
-#               v = hex(v)
- #           print(k,v)
+        for k,v in self.header.items() :
+            if isinstance(v, int) :
+               v = hex(v)
+            print(k,v)
 
     def parse_header(self) :
         f = self.xbe
@@ -54,7 +54,7 @@ class Chunklist :
 
     def discover_chunks(self) :
         print('Start parsing...')
-        next_entry = self.entry_type(self.header['left_ptr'])
+        next_entry = self.entry_type(rawaddress(self.header['left_ptr'], self.section, Chunklist.section_table)) 
         if next_entry is None:
             print('Chunklist {}: next left pointer is None'.format(self.offset))
             return None
