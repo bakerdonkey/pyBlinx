@@ -4,7 +4,6 @@ from address import section_addresses
 from address import rawaddress
 from helpers import verify_file_arg_o
 from helpers import verify_file_arg_b
-from world_transform import transform
 
 class Chunk :
     #TODO: reference a global, not the function to improve clearity.
@@ -22,7 +21,9 @@ class Chunk :
 
         self.header = self.parse_header()
 
-        self.name = 'ch_' + self.section + '_' + hex(self.header['virtual_offset'])
+        print(hex(self.header['voffset']))
+
+        self.name = 'ch_' + self.section + '_' + hex(self.offset)
 
         self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
         self.vertices = None
@@ -93,6 +94,7 @@ class Chunk :
         self.write_texcoords(f)
         self.write_triangles(f, texlist.matlist)
 
+    
 
     def parse_vertices(self, world=True) :
         '''
@@ -110,35 +112,20 @@ class Chunk :
         for _ in range(count) :
             word = list(unpack('fff', f.read(12)))
 
-            w = self.header['world_coords']
-            word[0] += w[0]
-            word[1] += w[1]
-            word[2] += w[2]
-
+            if world is True :
+                w = self.header['world_coords']
+                word[0] += w[0]
+                word[1] += w[1]
+                word[2] += w[2]
+                # TODO: implement rotate and scale
 
             v.append(tuple(word))
             f.seek(4, 1)
-
-
-
 
         print('Done')
 
         self.vertices = v
         return v
-
-    def apply_world(self) :
-        if self.vertices is None :
-            print('No verts to apply world coords to')
-            return
-        
-        for v in self.vertices :
-            ve = transform(v, self.header['world_coords'])
-
-            print('applying world {} to {} = {}'.format(self.header['world_coords'], v, ve))
-
-            v = ve
-
 
     def parse_triangles(self) :
         '''
@@ -221,13 +208,18 @@ class Chunk :
         print('Writing vertices to {}'.format(f.name))
         if not verts :
             print('\tNo vertices found!')
-        else :
-            for v in verts :
-                ln = 'v {} {} {}\n'.format(v[0], v[1], v[2])
-                f.write(ln)
+            return None
+        
+        for v in verts :
+            ln = 'v {} {} {}\n'.format(v[0], v[1], v[2])
+            f.write(ln)
 
     def write_triangles(self, file, matlist=None) : 
         f = verify_file_arg_o(file)
+
+        if not self.triangles :
+            print('\tNo triangles found!')
+            return None
 
         #TODO: implement material writing
         vt = 1
@@ -248,6 +240,11 @@ class Chunk :
     def write_texcoords(self, file) :
         f = verify_file_arg_o(file)
         triangles = self.triangles
+
+        if not triangles :
+            print('\tNo texcoords found!')
+            return None
+
         for tp in triangles :
             for ts in tp[0] :
                 for c in ts :

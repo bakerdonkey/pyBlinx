@@ -52,7 +52,7 @@ class Chunklist :
             'right_ptr': right
         }
 
-    def discover_chunks(self) :
+    def discover_local_chunks(self) :
         print('Start parsing...')
         next_entry = self.entry_type(rawaddress(self.header['left_ptr'], self.section, Chunklist.section_table)) 
         if next_entry is None:
@@ -72,13 +72,12 @@ class Chunklist :
             #?????
  #           if self.entry_type(cur.header['clist_ptr_1']) is 0xf:
  #               print('Chunk {} ({}): next chunk does not support chunklist parsing yet'.format(i, cur.offset))
- #               break
+ #               break            
+            self.chunks.append(cur)
 
             if cur.header['clist_ptr_1'] is None:
                 print('Last chunk on chunklist is {}'.format(i))
                 break
-            
-            self.chunks.append(cur)
 
             cur = self.next_chunk(cur.header['clist_ptr_1'])
 
@@ -89,7 +88,8 @@ class Chunklist :
             print('No chunks to parse')
             return
         for c in self.chunks :
-            c.parse()
+            if c.header['entry'] is not 0xe:
+                c.parse()
 
     def write(self, file, texlist=None, outdir='') :
         f = verify_file_arg_o(file, usage='w+')
