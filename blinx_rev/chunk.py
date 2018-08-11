@@ -21,8 +21,6 @@ class Chunk :
 
         self.header = self.parse_header()
 
-        print(hex(self.header['voffset']))
-
         self.name = 'ch_' + self.section + '_' + hex(self.offset)
 
         self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
