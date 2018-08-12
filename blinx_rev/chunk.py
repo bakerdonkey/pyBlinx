@@ -1,3 +1,4 @@
+from node import Node
 from struct import unpack
 from texlist import Texlist
 from address import section_addresses
@@ -5,77 +6,112 @@ from address import rawaddress
 from helpers import verify_file_arg_o
 from helpers import verify_file_arg_b
 
-class Chunk :
+class Chunk(Node) :
     #TODO: reference a global, not the function to improve clearity.
     section_table = section_addresses()
-
-
     def __init__(self, xbe, entry_offset, section, texlist=None, full=True) :
-        self.xbe = verify_file_arg_b(xbe)
-        
-        self.offset = rawaddress(entry_offset, section, Chunk.section_table)
-        
-        self.texlist = texlist
+        Node.__init__(self, xbe, entry_offset, section, texlist)
+    
+        print(hex(self.block))
 
-        self.section = section
+        block = self.parse_block()
+        self.voffset = block['voffset']
+        self.toffset = block['toffset']
 
-        self.header = self.parse_header()
+        
+
 
         self.name = 'ch_' + self.section + '_' + hex(self.offset)
 
-        self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
         self.vertices = None
-
-        self.toffset = rawaddress(self.header['toffset'], section, Chunk.section_table)
         self.triangles = None
 
         if full is True :
             self.vertices, self.triangles = self.parse(world=True)
 
-    def parse_header(self) :
-        '''
-        Reads chunk metadata contained in the header and returns a dictionary. Chunklist pointers are None
-        if they do not exist.
-        '''
+
+    def parse_block(self) :
         f = self.xbe
-        f.seek(self.offset)
-
-        print('Parsing chunk header at {}... '.format(hex(self.offset)), end='')
-
-        entry = unpack('i', f.read(4))[0]
-
-        chunk_offset = unpack('i', f.read(4))[0]
-        f.seek(-40, 1)
-
+        offset = rawaddress(self.block, self.section, Chunk.section_table)
+        f.seek(offset)
         vdata_offset = unpack('i', f.read(4))[0]
         tdata_offset = unpack('i', f.read(4))[0]
 
         float_array_0 = []
         for _ in range(6) : float_array_0.append(unpack('f', f.read(4))[0])
         
-        f.seek(8, 1)
-
-        world = []
-        for _ in range(9) : world.append(unpack('f', f.read(4))[0])
-
-        clist_ptr_0 = unpack('i', f.read(4))[0]
-        if clist_ptr_0 == 0 : clist_ptr_0 = None
-
-        clist_ptr_1 = unpack('i', f.read(4))[0]
-        if clist_ptr_1 == 0 : clist_ptr_1 = None
-
-        print('Done')
-
         return {
-            'entry' : entry,
-            'virtual_offset' : chunk_offset,
-            'voffset' : vdata_offset,
-            'toffset' : tdata_offset,
-            'f_array_0' : float_array_0,
-            'world_coords' : world,
-            'clist_ptr_0' : clist_ptr_0,
-            'clist_ptr_1' : clist_ptr_1
+            'voffset': vdata_offset,
+            'toffset': tdata_offset,
+            'farray': float_array_0
         }
+
+    # def __init__(self, xbe, entry_offset, section, texlist=None, full=True) :
+    #     self.xbe = verify_file_arg_b(xbe)
+        
+    #     self.offset = rawaddress(entry_offset, section, Chunk.section_table)
+        
+    #     self.texlist = texlist
+
+    #     self.section = section
+
+    #     self.header = self.parse_header()
+
+    #     self.name = 'ch_' + self.section + '_' + hex(self.offset)
+
+    #     self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
+    #     self.vertices = None
+
+    #     self.toffset = rawaddress(self.header['toffset'], section, Chunk.section_table)
+    #     self.triangles = None
+
+    #     if full is True :
+    #         self.vertices, self.triangles = self.parse(world=True)
+
+    # def parse_header(self) :
+    #     '''
+    #     Reads chunk metadata contained in the header and returns a dictionary. Chunklist pointers are None
+    #     if they do not exist.
+    #     '''
+    #     f = self.xbe
+    #     f.seek(self.offset)
+
+    #     print('Parsing chunk header at {}... '.format(hex(self.offset)), end='')
+
+    #     entry = unpack('i', f.read(4))[0]
+
+    #     chunk_offset = unpack('i', f.read(4))[0]
+    #     f.seek(-40, 1)
+
+    #     vdata_offset = unpack('i', f.read(4))[0]
+    #     tdata_offset = unpack('i', f.read(4))[0]
+
+    #     float_array_0 = []
+    #     for _ in range(6) : float_array_0.append(unpack('f', f.read(4))[0])
+        
+    #     f.seek(8, 1)
+
+    #     world = []
+    #     for _ in range(9) : world.append(unpack('f', f.read(4))[0])
+
+    #     clist_ptr_0 = unpack('i', f.read(4))[0]
+    #     if clist_ptr_0 == 0 : clist_ptr_0 = None
+
+    #     clist_ptr_1 = unpack('i', f.read(4))[0]
+    #     if clist_ptr_1 == 0 : clist_ptr_1 = None
+
+    #     print('Done')
+
+    #     return {
+    #         'entry' : entry,
+    #         'virtual_offset' : chunk_offset,
+    #         'voffset' : vdata_offset,
+    #         'toffset' : tdata_offset,
+    #         'f_array_0' : float_array_0,
+    #         'world_coords' : world,
+    #         'clist_ptr_0' : clist_ptr_0,
+    #         'clist_ptr_1' : clist_ptr_1
+    #     }
 
     def parse(self, world=True) :
         v = self.parse_vertices(world=world)
@@ -111,7 +147,8 @@ class Chunk :
             word = list(unpack('fff', f.read(12)))
 
             if world is True :
-                w = self.header['world_coords']
+                #w = self.header['world_coords']
+                w = self.world_coords
                 word[0] += w[0]
                 word[1] += w[1]
                 word[2] += w[2]
@@ -169,7 +206,8 @@ class Chunk :
         f.seek(2, 1)
         
         # Check if last tripart 
-        # TODO: Handle chunks with multiple triangle data regions better
+        # TODO: Handle chunks with multiple triangle data regions
+        # TODO: Handlew SIMPLE tristrips
         tripart_size = unpack('h', f.read(2))[0] * 2
         f.seek(tripart_size, 1) 
         tripart_end = f.tell()
@@ -219,6 +257,7 @@ class Chunk :
             print('\tNo triangles found!')
             return None
 
+        #TODO: write non-texture materials
         #TODO: implement material writing
         vt = 1
         triangles = self.triangles

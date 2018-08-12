@@ -49,15 +49,15 @@ def main() :
             texlist.write_mtl(m, in_directory +'/media')
 
 
-  #      chunklist = Chunklist(xbe, coffset, sect, texlist)
- #       chunklist.discover_local_chunks()
-#        chunklist.parse_all_chunks()
-#        with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
-#            chunklist.write(f, texlist=texlist, outdir=out_directory)
+        chunklist = Chunklist(xbe, coffset, sect, texlist)
+        chunklist.discover_local_chunks()
+        chunklist.parse_all_chunks()
+        with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
+            chunklist.write(f, texlist=texlist, outdir=out_directory)
 
-        chunk = Chunk(xbe, coffset, sect)
-        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
-           chunk.write(f, texlist)
+#        chunk = Chunk(xbe, coffset, sect)
+#        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
+#           chunk.write(f, texlist)
 
 
 

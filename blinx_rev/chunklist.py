@@ -1,3 +1,4 @@
+from node import Node
 from chunk import Chunk
 from texlist import Texlist
 from struct import unpack
@@ -55,6 +56,7 @@ class Chunklist :
     def discover_local_chunks(self) :
         print('Start parsing...')
         next_entry = self.entry_type(rawaddress(self.header['left_ptr'], self.section, Chunklist.section_table)) 
+        #next_entry = self.entry_type(rawaddress(self.left, self.section, Chunklist.section_table)) 
         if next_entry is None:
             print('Chunklist {}: next left pointer is None'.format(self.offset))
             return None
@@ -65,7 +67,9 @@ class Chunklist :
 
         i = 0
         print(self.header['left_ptr'])
+        #print(self.left)
         cur = self.next_chunk(self.header['left_ptr'])
+        #cur = self.next_chunk(self.left)
         while True :
             print('Chunk {}'.format(i))
 
@@ -75,11 +79,13 @@ class Chunklist :
  #               break            
             self.chunks.append(cur)
 
-            if cur.header['clist_ptr_1'] is None:
+            #if cur.header['clist_ptr_1'] is None:
+            if cur.right is None:
                 print('Last chunk on chunklist is {}'.format(i))
                 break
 
-            cur = self.next_chunk(cur.header['clist_ptr_1'])
+            #cur = self.next_chunk(cur.header['clist_ptr_1'])
+            cur = self.next_chunk(cur.right)
 
             i += 1
 
