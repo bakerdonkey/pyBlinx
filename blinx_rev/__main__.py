@@ -1,3 +1,4 @@
+from tree import Tree
 from chunk import Chunk
 from chunklist import Chunklist
 from texlist import Texlist
@@ -48,28 +49,19 @@ def main() :
         with open('{}/{}.mtl'.format(out_directory, texlist.name), 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
+        tree = Tree(xbe, coffset, sect, texlist)
+        tree.build_tree_rec(tree.root)
 
-        chunklist = Chunklist(xbe, coffset, sect, texlist)
-        chunklist.discover_local_chunks()
-        chunklist.parse_all_chunks()
-        with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
-            chunklist.write(f, texlist=texlist, outdir=out_directory)
+#        chunklist = Chunklist(xbe, coffset, sect, texlist)
+#        chunklist.discover_local_chunks()
+#        chunklist.parse_all_chunks()
+#        with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
+#            chunklist.write(f, texlist=texlist, outdir=out_directory)
 
-#        chunk = Chunk(xbe, coffset, sect)
+#        chunk = Chunk(xbe, coffset, sect, full=False)
+#        chunk.parse_triangles()
 #        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
-#           chunk.write(f, texlist)
-
-
-
-##        chunk.parse_vertices()
-##        chunk.parse_triangles()
-##        chunk.parse()
-
-##            f.write('mtllib outie.mtl\n')
-##            f.write('o im_outie\n')
-##            chunk.write_vertices(f)
-##            chunk.write_texcoords(f)
-##            chunk.write_triangles(f, matlist=texlist.matlist)
+#            chunk.write_texcoords(f)
 
 def __tk_load_dir(dir_type) :
     Tk().withdraw()

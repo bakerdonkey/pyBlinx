@@ -1,24 +1,61 @@
 #import numpy
+from math import sin
+from math import cos
 
-# TODO: Use matrix transforms (with numpy)
 
 def transform(vertex, world) :
-    #v = scale(vertex, world[6:9])
-    #r = [rotate(vertex, world[3:6])]
     t = translate(vertex, world[0:3])
-    return t
+    r = rotate(t, world[3:6])
+    v = scale(r, world[6:9])
+    
+    return v
 
 def translate(vertex, world) :
-    x = world[0] + vertex[0]
-    y = world[1] + vertex[1]
-    z = world[2] + vertex[2]
+    x = vertex[0] + world[0]
+    y = vertex[1] + world[1]
+    z = vertex[2] + world[2]
+
     return  (x, y, z)
 
+# TODO: Use homogenius matrix transforms
 def rotate(vertex, world) :
-    pass
+    x, y, z = vertex[0], vertex[1], vertex[2]
+
+    # x axis rotation
+    q = world[0]
+    x_prime = x
+    y_prime = y*cos(q) - z*sin(q)
+    z_prime = y*sin(q) + z*cos(q)
+    x, y, z = x_prime, y_prime, z_prime
+
+    # y axis rotation
+    q = world[1]
+    x_prime = z*sin(q) + x*cos(q)
+    y_prime = y
+    z_prime = z*cos(q) - x*sin(q)
+    x, y, z = x_prime, y_prime, z_prime
+
+    # z axis rotation
+    q = world[2]
+    x_prime = x*cos(q) - y*sin(q)
+    y_prime = x*sin(q) + y*cos(q)    
+    z_prime = z
+    x, y, z = x_prime, y_prime, z_prime
+
+    return(x, y, z)
+
 
 def scale(vertex, world) :
-    x = world[6] * vertex[0]
-    y = world[7] * vertex[1]
-    z = world[8] * vertex[2]
+    x = vertex[0] * world[0]
+    y = vertex[1] * world[1]
+    z = vertex[2] * world[2]
+
     return  (x, y, z)
+
+def main() :
+    v = (1,1,1)
+    w = (0, 0, 0, 0, 0, 1, 1, 1, 1)
+    print(transform(v, w))
+
+if __name__=='__main__' :
+    main()

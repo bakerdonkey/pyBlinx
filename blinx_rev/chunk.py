@@ -9,17 +9,12 @@ from helpers import verify_file_arg_b
 class Chunk(Node) :
     #TODO: reference a global, not the function to improve clearity.
     section_table = section_addresses()
-    def __init__(self, xbe, entry_offset, section, texlist=None, full=True) :
+    def __init__(self, xbe, entry_offset, section, texlist=None, node=None, full=True) :
         Node.__init__(self, xbe, entry_offset, section, texlist)
-    
-        print(hex(self.block))
 
         block = self.parse_block()
-        self.voffset = block['voffset']
-        self.toffset = block['toffset']
-
-        
-
+        self.voffset = rawaddress(block['voffset'], self.section, Chunk.section_table)
+        self.toffset = rawaddress(block['toffset'], self.section, Chunk.section_table)
 
         self.name = 'ch_' + self.section + '_' + hex(self.offset)
 
@@ -172,9 +167,9 @@ class Chunk(Node) :
         print('Parsing triangles at {}... '.format(hex(self.toffset)))
 
         # TODO: Research header flavors and usage.
-        # flavor = unpack('h', f.read(2))
         f.seek(2, 1)
         header_size = unpack('h', f.read(2))[0] * 2
+        print('header size: ' + str(header_size))
         f.seek(header_size, 1)
 
         t = []
@@ -195,7 +190,7 @@ class Chunk(Node) :
     def parse_tripart(self) :
         '''
         Reads tripart. Returns tuple (tripart, texlist index, last) where tripart is a list of tuples (vertex index, tex_x, tex_y),
-        texlist index assigns the texture, and last is an escape flag.
+        texlist index assigns the texture, and last is the escape flag.
         '''
         f = self.xbe
 
@@ -217,11 +212,12 @@ class Chunk(Node) :
         f.seek(-(tripart_size + 4), 1)
 
         t_length = unpack('h', f.read(2))[0]
+        print('t_length: ' + str(t_length))
         for i in range(t_length) :
             strip = []
             s_length = abs(unpack('h', f.read(2))[0])
 
-            #print('\t\tParsing tristrip {} of size {}'.format(i, s_length))
+            print('\t\tParsing tristrip {} of size {}'.format(i, s_length))
 
             for _ in range(s_length) :
                 raw_point = list(unpack('hhh', f.read(6)))
@@ -287,4 +283,5 @@ class Chunk(Node) :
                 for c in ts :
                     vt = list(c[1:])
                     ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
+
                     f.write(ln)

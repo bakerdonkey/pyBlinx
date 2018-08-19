@@ -17,11 +17,15 @@ class Node :
 
         header = self.parse_header()
 
+        #TODO: rename left_node/right_node and left/right for readability
         self.entry = header['entry']
         self.block = header['block_ptr']
         self.world_coords = header['world_coords']
         self.left = header['left_ptr']
         self.right = header['right_ptr']
+
+        self.left_node = None
+        self.right_node = None
 
     def parse_header(self) :
         f = self.xbe
@@ -35,10 +39,10 @@ class Node :
         for _ in range(9) : world.append(unpack('f', f.read(4))[0])
 
         left = unpack('i', f.read(4))[0]
-        if left is 0 : block = None
+        if left is 0 : left = None
 
         right = unpack('i', f.read(4))[0]
-        if right is 0 : block = None
+        if right is 0 : right = None
 
         return {
             'entry': entry,
