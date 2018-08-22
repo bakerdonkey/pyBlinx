@@ -5,10 +5,10 @@ from math import cos
 
 def transform(vertex, world) :
     t = translate(vertex, world[0:3])
-    r = rotate(t, world[3:6])
-    v = scale(r, world[6:9])
+    #r = rotate(t, world[3:6])
+    #v = scale(r, world[6:9])
     
-    return v
+    return t
 
 def translate(vertex, world) :
     x = vertex[0] + world[0]

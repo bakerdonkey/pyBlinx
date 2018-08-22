@@ -51,7 +51,9 @@ def main() :
 
         tree = Tree(xbe, coffset, sect, texlist)
         tree.build_tree_rec(tree.root)
-
+        tree.parse_chunks()
+        tree.write(out_directory)
+        
 #        chunklist = Chunklist(xbe, coffset, sect, texlist)
 #        chunklist.discover_local_chunks()
 #        chunklist.parse_all_chunks()

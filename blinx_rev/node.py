@@ -8,7 +8,7 @@ from helpers import verify_file_arg_b
 class Node :
     section_table = section_addresses()
 
-    def __init__(self, xbe, entry_offset, section, texlist=None) :
+    def __init__(self, xbe, entry_offset, section, texlist=None, parent_coords=None) :
 
         self.xbe = verify_file_arg_b(xbe)
         self.section = section
@@ -24,6 +24,7 @@ class Node :
         self.left = header['left_ptr']
         self.right = header['right_ptr']
 
+        self.parent_coords = parent_coords if parent_coords is not None else (0, 0, 0, 0, 0, 0, 0, 0, 0,)
         self.left_node = None
         self.right_node = None
 

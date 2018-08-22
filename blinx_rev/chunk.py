@@ -5,12 +5,14 @@ from address import section_addresses
 from address import rawaddress
 from helpers import verify_file_arg_o
 from helpers import verify_file_arg_b
+from world_transform import transform
+import operator
 
 class Chunk(Node) :
     #TODO: reference a global, not the function to improve clearity.
     section_table = section_addresses()
-    def __init__(self, xbe, entry_offset, section, texlist=None, node=None, full=True) :
-        Node.__init__(self, xbe, entry_offset, section, texlist)
+    def __init__(self, xbe, entry_offset, section, texlist=None, parent_coords=None, full=True) :
+        Node.__init__(self, xbe, entry_offset, section, texlist, parent_coords)
 
         block = self.parse_block()
         self.voffset = rawaddress(block['voffset'], self.section, Chunk.section_table)
@@ -142,12 +144,9 @@ class Chunk(Node) :
             word = list(unpack('fff', f.read(12)))
 
             if world is True :
-                #w = self.header['world_coords']
-                w = self.world_coords
-                word[0] += w[0]
-                word[1] += w[1]
-                word[2] += w[2]
-                # TODO: implement rotate and scale
+                w = tuple(map(operator.add, self.world_coords, self.parent_coords))
+                #print(str(self.world_coords[:3]) + ' + ' + str(self.parent_coords[:3]) + ' = ' + str(w[:3]))
+                word = transform(word, w)
 
             v.append(tuple(word))
             f.seek(4, 1)
@@ -166,10 +165,13 @@ class Chunk(Node) :
 
         print('Parsing triangles at {}... '.format(hex(self.toffset)))
 
+        # Hacky fix around unknown value at 0xbc58 in MDLEN. Probably others like it.
+        if unpack('i', f.read(4))[0] > 50 :
+            f.seek(-4, 1)
+
         # TODO: Research header flavors and usage.
         f.seek(2, 1)
         header_size = unpack('h', f.read(2))[0] * 2
-        print('header size: ' + str(header_size))
         f.seek(header_size, 1)
 
         t = []
@@ -180,7 +182,8 @@ class Chunk(Node) :
             i += 1
 
             tripart = self.parse_tripart()
-            t.append((tripart[0], tripart[1]))
+            if(tripart[0] is not None and tripart[1] is not None) :     #TODO: improve readability
+                t.append((tripart[0], tripart[1]))
             if tripart[2] : break
             
         print('Done')
@@ -196,32 +199,36 @@ class Chunk(Node) :
 
         t = []
         escape = False
-        f.seek(2, 1)        
+        type_spec = unpack('h', f.read(2))[0]
+
+        # Temporary simple tristrip handling
+        if (type_spec - 0x0408) % 0x1000 != 0 :
+            print('\tNon-texture tripart detected. Aborting')
+            print(hex(type_spec - 0x0408))
+            return(None, None, True)   
+
         texlist_index = unpack('h', f.read(2))[0] ^ 0x4000     
         f.seek(2, 1)
         
         # Check if last tripart 
         # TODO: Handle chunks with multiple triangle data regions
-        # TODO: Handlew SIMPLE tristrips
+        # TODO: Process SIMPLE tristrips
         tripart_size = unpack('h', f.read(2))[0] * 2
         f.seek(tripart_size, 1) 
         tripart_end = f.tell()
         esc_candidate = f.read(4)
-        if esc_candidate is b'\xff\x00\x00\x00' :  escape = True # Escape symbol
-        if unpack('f', esc_candidate)[0] < 1.5 : escape = True    # The first four bytes of tpart headers is a float ~2.0. Hacky, but works
+        if esc_candidate is b'\xff\x00\x00\x00' :  escape = True    # Escape symbol
+        if unpack('f', esc_candidate)[0] < 1.5 : escape = True      # The first four bytes of tpart headers is a float ~2.0. Hacky. Improve.
         f.seek(-(tripart_size + 4), 1)
 
         t_length = unpack('h', f.read(2))[0]
-        print('t_length: ' + str(t_length))
         for i in range(t_length) :
             strip = []
             s_length = abs(unpack('h', f.read(2))[0])
 
-            print('\t\tParsing tristrip {} of size {}'.format(i, s_length))
-
             for _ in range(s_length) :
                 raw_point = list(unpack('hhh', f.read(6)))
-                raw_point[0] += 1               #TODO: make more pythonic and readable
+                raw_point[0] += 1               #TODO: clean up
                 raw_point[1] /= 255.0
                 raw_point[2] /= -255.0
                 raw_point[2] += 1.0
@@ -283,5 +290,4 @@ class Chunk(Node) :
                 for c in ts :
                     vt = list(c[1:])
                     ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
-
                     f.write(ln)

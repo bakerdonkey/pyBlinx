@@ -2,6 +2,10 @@ from struct import unpack
 from node import Node
 from chunk import Chunk
 from helpers import verify_file_arg_b
+from helpers import verify_file_arg_o
+import operator
+
+import time
 
 class Tree :
     def __init__(self, xbe, entry_offset, section, texlist=None) :
@@ -12,31 +16,69 @@ class Tree :
         f = self.xbe
         self.root = Node(f, entry_offset, self.section, texlist)
 
-    def build_tree_rec(self, node, level=0) :
+    def build_tree_rec(self, node=None, level=0) :
+        if node is None : 
+            node = self.root
+
         type_name = 'Chunk' if isinstance(node, Chunk) else 'Node'
-        pad = ' ' * level
-        print('{}{} {} {}'.format(pad, type_name, hex(node.entry), hex(node.offset)))
+        pad = '\t' * level
+        print('{}{} {} {} \n {}{} + {}'.format(pad, type_name, hex(node.entry), hex(node.offset), pad, node.world_coords[:3], node.parent_coords[:3]))
         level += 1
+        #time.sleep(.5)
 
         if node.left is not None :
             nex = Node(self.xbe, node.left, self.section, self.texlist)
-            # If block exists, node is a chunk. Otherwise, it's a node
+            nex.parent_coords = tuple(map(operator.add, node.parent_coords, node.world_coords)) # apply parent matrix
+            print('here')
+            # If block exists, node is a chunk. Otherwise node
             if nex.block is not None :
-                node.left_node = Chunk(self.xbe, node.left, self.section, self.texlist, full=False)
-
+                node.left_node = Chunk(self.xbe, node.left, self.section, self.texlist, nex.parent_coords, full=False)
             else :
                 node.left_node = nex
             
             self.build_tree_rec(node.left_node, level)
         if node.right is not None:
             nex = Node(self.xbe, node.right, self.section, self.texlist)
+            nex.parent_coords = node.parent_coords
             if nex.block is not None :
-                node.right_node = Chunk(self.xbe, node.right, self.section, self.texlist, full=False)
+                node.right_node = Chunk(self.xbe, node.right, self.section, self.texlist, nex.parent_coords, full=False)
 
             else :
                 node.right_node = nex
 
             self.build_tree_rec(node.right_node, level - 1)
-
-
     
+    def parse_chunks(self, node=None) :
+        if node is None : 
+            node = self.root
+
+        if isinstance(node, Chunk) and node.entry is not 0x12 : # FIXME: strange chunk in chronoblob is 0x12. Not verified against others
+            node.parse(world=True)
+
+        if node.left is not None :
+            
+            self.parse_chunks(node.left_node)
+
+        if node.right is not None :
+            self.parse_chunks(node.right_node)
+
+                
+
+    def write(self, outdir, node=None) :
+        '''
+        Write all full chunks in tree. Does not support character chunks
+        '''
+        if node is None :
+            node = self.root
+        
+        if isinstance(node, Chunk) :
+            with open('{}/{}.obj'.format(outdir, node.name), 'w+') as fi :
+                node.write(fi, texlist=self.texlist, clist=False)
+
+        if node.left is not None :
+            self.write(outdir, node.left_node)
+
+        if node.right is not None :
+            self.write(outdir, node.right_node)
+        
+        
