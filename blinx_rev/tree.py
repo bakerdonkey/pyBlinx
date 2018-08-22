@@ -22,14 +22,13 @@ class Tree :
 
         type_name = 'Chunk' if isinstance(node, Chunk) else 'Node'
         pad = '\t' * level
-        print('{}{} {} {} \n {}{} + {}'.format(pad, type_name, hex(node.entry), hex(node.offset), pad, node.world_coords[:3], node.parent_coords[:3]))
+        print('{}{} {} {}'.format(pad, type_name, hex(node.entry), hex(node.offset)))
         level += 1
         #time.sleep(.5)
 
         if node.left is not None :
             nex = Node(self.xbe, node.left, self.section, self.texlist)
             nex.parent_coords = tuple(map(operator.add, node.parent_coords, node.world_coords)) # apply parent matrix
-            print('here')
             # If block exists, node is a chunk. Otherwise node
             if nex.block is not None :
                 node.left_node = Chunk(self.xbe, node.left, self.section, self.texlist, nex.parent_coords, full=False)
