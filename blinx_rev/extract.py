@@ -1,3 +1,5 @@
+# DEPRICATED
+
 from enum import Enum
 from tkinter import filedialog
 from tkinter import Tk
@@ -5,7 +7,6 @@ import struct
 import argparse
 import os
 import time
-
     
 class Extractor :
     def __init__(self, mode=0, section_path=None, media_path=None, vert_path=None, tri_path=None, obj_path=None, bin_dir=None) :
@@ -712,3 +713,70 @@ def verify_file_arg_b(fileobj) :
         with open(fileobj, 'rb') as f :
             return f
     else : return fileobj
+
+            # def __init__(self, xbe, entry_offset, section, texlist=None, full=True) :
+    #     self.xbe = verify_file_arg_b(xbe)
+        
+    #     self.offset = rawaddress(entry_offset, section, Chunk.section_table)
+        
+    #     self.texlist = texlist
+
+    #     self.section = section
+
+    #     self.header = self.parse_header()
+
+    #     self.name = 'ch_' + self.section + '_' + hex(self.offset)
+
+    #     self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
+    #     self.vertices = None
+
+    #     self.toffset = rawaddress(self.header['toffset'], section, Chunk.section_table)
+    #     self.triangles = None
+
+    #     if full is True :
+    #         self.vertices, self.triangles = self.parse(world=True)
+
+    # def parse_header(self) :
+    #     '''
+    #     Reads chunk metadata contained in the header and returns a dictionary. Chunklist pointers are None
+    #     if they do not exist.
+    #     '''
+    #     f = self.xbe
+    #     f.seek(self.offset)
+
+    #     print('Parsing chunk header at {}... '.format(hex(self.offset)), end='')
+
+    #     entry = unpack('i', f.read(4))[0]
+
+    #     chunk_offset = unpack('i', f.read(4))[0]
+    #     f.seek(-40, 1)
+
+    #     vdata_offset = unpack('i', f.read(4))[0]
+    #     tdata_offset = unpack('i', f.read(4))[0]
+
+    #     float_array_0 = []
+    #     for _ in range(6) : float_array_0.append(unpack('f', f.read(4))[0])
+        
+    #     f.seek(8, 1)
+
+    #     world = []
+    #     for _ in range(9) : world.append(unpack('f', f.read(4))[0])
+
+    #     clist_ptr_0 = unpack('i', f.read(4))[0]
+    #     if clist_ptr_0 == 0 : clist_ptr_0 = None
+
+    #     clist_ptr_1 = unpack('i', f.read(4))[0]
+    #     if clist_ptr_1 == 0 : clist_ptr_1 = None
+
+    #     print('Done')
+
+    #     return {
+    #         'entry' : entry,
+    #         'virtual_offset' : chunk_offset,
+    #         'voffset' : vdata_offset,
+    #         'toffset' : tdata_offset,
+    #         'f_array_0' : float_array_0,
+    #         'world_coords' : world,
+    #         'clist_ptr_0' : clist_ptr_0,
+    #         'clist_ptr_1' : clist_ptr_1
+    #     }

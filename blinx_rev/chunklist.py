@@ -56,7 +56,6 @@ class Chunklist :
     def discover_local_chunks(self) :
         print('Start parsing...')
         next_entry = self.entry_type(rawaddress(self.header['left_ptr'], self.section, Chunklist.section_table)) 
-        #next_entry = self.entry_type(rawaddress(self.left, self.section, Chunklist.section_table)) 
         if next_entry is None:
             print('Chunklist {}: next left pointer is None'.format(self.offset))
             return None
@@ -71,20 +70,13 @@ class Chunklist :
         cur = self.next_chunk(self.header['left_ptr'])
         #cur = self.next_chunk(self.left)
         while True :
-            print('Chunk {}'.format(i))
-
-            #?????
- #           if self.entry_type(cur.header['clist_ptr_1']) is 0xf:
- #               print('Chunk {} ({}): next chunk does not support chunklist parsing yet'.format(i, cur.offset))
- #               break            
+            print('Chunk {}'.format(i))         
             self.chunks.append(cur)
 
-            #if cur.header['clist_ptr_1'] is None:
             if cur.right is None:
                 print('Last chunk on chunklist is {}'.format(i))
                 break
 
-            #cur = self.next_chunk(cur.header['clist_ptr_1'])
             cur = self.next_chunk(cur.right)
 
             i += 1
