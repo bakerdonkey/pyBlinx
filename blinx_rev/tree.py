@@ -17,6 +17,9 @@ class Tree :
         self.root = Node(f, entry_offset, self.section, texlist)
 
     def build_tree_rec(self, node=None, level=0) :
+        '''
+        Build tree starting at self.root by discovering node stubs. Does not parse nodes.
+        '''
         if node is None : 
             node = self.root
 
@@ -48,6 +51,9 @@ class Tree :
             self.build_tree_rec(node.right_node, level - 1)
     
     def parse_chunks(self, node=None) :
+        '''
+        Recurse through tree and parse all chunks. Nodes are not parsed.
+        '''
         if node is None : 
             node = self.root
 

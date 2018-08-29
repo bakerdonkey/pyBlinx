@@ -29,6 +29,9 @@ class Node :
         self.right_node = None
 
     def parse_header(self) :
+        '''
+        Parse header stub and store its data.
+        '''
         f = self.xbe
         f.seek(self.offset)
         entry = unpack('i', f.read(4))[0]

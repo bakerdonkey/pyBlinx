@@ -17,21 +17,6 @@ def main() :
     parser.add_argument('-co', '--coffset', help='Chunk entry offset (virtual address)', type=lambda x: int(x,16))
     parser.add_argument('-so', '--soffset', help='Stringlist file entry offset (virtual address)', type=lambda x: int(x,16))
 
-
-#    parser.add_argument('-me', '--mediapath', help='Path to media directory', type=str)
-#    parser.add_argument('-m', '--mode', help='Mode of operation - chunk=0, vert/tri=1', type=int)
-#    parser.add_argument('-s', '--section', help='Path to section file', type=str)
-#    parser.add_argument('-so', '--soffset', help='Stringlist file entry offset', type=lambda x: int(x,0))
-#    parser.add_argument('-co', '--coffset', help='Chunk file entry offset', type=lambda x: int(x,0))
-#    parser.add_argument('-o', '--obj', help='Path to output obj file (vert/tri)', type=str)
-#    parser.add_argument('-b', '--bin', help='Path to binary directory (vert/tri)', type=str)
-
-#    parser.add_argument('-c', '--chunk', help='(DEPRICATED) Path to chunk file', type=str)
-#    parser.add_argument('-p', '--pointers', help='(DEPRICATED) Chunk file contains pointers to next chunk', type=bool)
-#    parser.add_argument('-vo', '--voffset', help='(DEPRICATED) Vertex offset in chunk file (in hex)', type=int)
-#    parser.add_argument('-to', '--toffset', help='(DEPRICATED) Triangle offset in chunk file (in hex)', type=int)
-#    parser.add_argument('-v', '--vert', help='(DEPRICATED) Path to vertex list file', type=str)
-#    parser.add_argument('-t', '--tri', help='(DEPRICATED) Path to triangle list file', type=str)
     args = parser.parse_args()
 
     in_directory = os.path.abspath(args.directory) if args.directory is not None else __tk_load_dir('base')
@@ -75,5 +60,3 @@ def __tk_load_dir(dir_type) :
 
     return in_path 
 
-if __name__ == '__main__' :
-    main()

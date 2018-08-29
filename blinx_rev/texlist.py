@@ -30,6 +30,9 @@ class Texlist :
 
 
     def parse_header(self) :
+        '''
+        Read header stub and return its data.
+        '''
         f = self.xbe
         f.seek(self.offset)
 
@@ -42,6 +45,9 @@ class Texlist :
         }
 
     def parse_strlist(self) :
+        '''
+        Parse texture names and store in self.strlist.
+        '''
         f = self.xbe
         s = []
 
@@ -61,6 +67,9 @@ class Texlist :
 
     #TODO: implement game-defined materials
     def write_mtl(self, file, mediapath) :
+        '''
+        Create a .mat material library from the texlist with dummy Kd and Ks values.
+        '''
         f = verify_file_arg_o(file)
         pathlist = self.strlist_to_pathlist(mediapath)
         matlist = self.strlist_to_matlist()
@@ -77,6 +86,9 @@ class Texlist :
 
 
     def strlist_to_pathlist(self, mediapath) :
+        '''
+        Create a pathlist from self.strlist and a provided path to media folder.
+        '''
         if self.strlist is None : 
             print('Stringlist not parsed, can not convert to pathlist')
             return None
@@ -91,6 +103,9 @@ class Texlist :
         return pathlist
 
     def strlist_to_matlist(self) :
+        '''
+        Create a matlist from self.strlist
+        '''
         if self.strlist is None : 
             print('Stringlist not parsed, can not convert to material list')
             return None

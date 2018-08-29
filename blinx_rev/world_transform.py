@@ -4,13 +4,19 @@ from math import cos
 
 
 def transform(vertex, world) :
+    '''
+    Transform a vertex array by a world coordinate array.
+    '''
     t = translate(vertex, world[0:3])
-    #r = rotate(t, world[3:6])
-    #v = scale(r, world[6:9])
+    r = rotate(t, world[3:6])
+    v = scale(r, world[6:9])
     
-    return t
+    return v
 
 def translate(vertex, world) :
+    '''
+    Translate a vertex by a world array by piecewise adding
+    '''
     x = vertex[0] + world[0]
     y = vertex[1] + world[1]
     z = vertex[2] + world[2]
@@ -19,6 +25,10 @@ def translate(vertex, world) :
 
 # TODO: Use homogenius matrix transforms
 def rotate(vertex, world) :
+    '''
+    Rotate a vertex around its origin by a world array denoting [x, y, z]. Assumes radions.
+    '''
+    #TODO: verify it works
     x, y, z = vertex[0], vertex[1], vertex[2]
 
     # x axis rotation
@@ -46,16 +56,11 @@ def rotate(vertex, world) :
 
 
 def scale(vertex, world) :
+    '''
+    Scale a vertex by a world array.
+    '''
     x = vertex[0] * world[0]
     y = vertex[1] * world[1]
     z = vertex[2] * world[2]
 
     return  (x, y, z)
-
-def main() :
-    v = (1,1,1)
-    w = (0, 0, 0, 0, 0, 1, 1, 1, 1)
-    print(transform(v, w))
-
-if __name__=='__main__' :
-    main()

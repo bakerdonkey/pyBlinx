@@ -9,8 +9,8 @@ from world_transform import transform
 import operator
 
 class Chunk(Node) :
-    #TODO: reference a global, not the function to improve clearity.
     section_table = section_addresses()
+
     def __init__(self, xbe, entry_offset, section, texlist=None, parent_coords=None, full=True) :
         Node.__init__(self, xbe, entry_offset, section, texlist, parent_coords)
 
@@ -28,6 +28,9 @@ class Chunk(Node) :
 
 
     def parse_block(self) :
+        '''
+        Parse pointer block and return data.
+        '''
         f = self.xbe
         offset = rawaddress(self.block, self.section, Chunk.section_table)
         f.seek(offset)
@@ -43,79 +46,19 @@ class Chunk(Node) :
             'farray': float_array_0
         }
 
-    # def __init__(self, xbe, entry_offset, section, texlist=None, full=True) :
-    #     self.xbe = verify_file_arg_b(xbe)
-        
-    #     self.offset = rawaddress(entry_offset, section, Chunk.section_table)
-        
-    #     self.texlist = texlist
-
-    #     self.section = section
-
-    #     self.header = self.parse_header()
-
-    #     self.name = 'ch_' + self.section + '_' + hex(self.offset)
-
-    #     self.voffset = rawaddress(self.header['voffset'], section, Chunk.section_table)
-    #     self.vertices = None
-
-    #     self.toffset = rawaddress(self.header['toffset'], section, Chunk.section_table)
-    #     self.triangles = None
-
-    #     if full is True :
-    #         self.vertices, self.triangles = self.parse(world=True)
-
-    # def parse_header(self) :
-    #     '''
-    #     Reads chunk metadata contained in the header and returns a dictionary. Chunklist pointers are None
-    #     if they do not exist.
-    #     '''
-    #     f = self.xbe
-    #     f.seek(self.offset)
-
-    #     print('Parsing chunk header at {}... '.format(hex(self.offset)), end='')
-
-    #     entry = unpack('i', f.read(4))[0]
-
-    #     chunk_offset = unpack('i', f.read(4))[0]
-    #     f.seek(-40, 1)
-
-    #     vdata_offset = unpack('i', f.read(4))[0]
-    #     tdata_offset = unpack('i', f.read(4))[0]
-
-    #     float_array_0 = []
-    #     for _ in range(6) : float_array_0.append(unpack('f', f.read(4))[0])
-        
-    #     f.seek(8, 1)
-
-    #     world = []
-    #     for _ in range(9) : world.append(unpack('f', f.read(4))[0])
-
-    #     clist_ptr_0 = unpack('i', f.read(4))[0]
-    #     if clist_ptr_0 == 0 : clist_ptr_0 = None
-
-    #     clist_ptr_1 = unpack('i', f.read(4))[0]
-    #     if clist_ptr_1 == 0 : clist_ptr_1 = None
-
-    #     print('Done')
-
-    #     return {
-    #         'entry' : entry,
-    #         'virtual_offset' : chunk_offset,
-    #         'voffset' : vdata_offset,
-    #         'toffset' : tdata_offset,
-    #         'f_array_0' : float_array_0,
-    #         'world_coords' : world,
-    #         'clist_ptr_0' : clist_ptr_0,
-    #         'clist_ptr_1' : clist_ptr_1
-    #     }
 
     def parse(self, world=True) :
+        '''
+        Parse vetices and triangles in chunk.
+        '''
         v = self.parse_vertices(world=world)
         t = self.parse_triangles()
         return v, t
 
     def write(self, file, texlist=None, clist=False) :
+        '''
+        Write .obj to open file handle. If texlist is not None, reference material library.
+        '''
         f = verify_file_arg_o(file, usage='w+')
         if texlist is not None and clist is False :
             f.write('mtllib {}.mtl\n'.format(texlist.name))
