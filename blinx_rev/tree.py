@@ -1,8 +1,8 @@
 from struct import unpack
-from node import Node
-from chunk import Chunk
-from helpers import verify_file_arg_b
-from helpers import verify_file_arg_o
+from .node import Node
+from .chunk import Chunk
+from .helpers import verify_file_arg_b
+from .helpers import verify_file_arg_o
 import operator
 
 import time

@@ -1,11 +1,11 @@
-from node import Node
+from .node import Node
 from struct import unpack
-from texlist import Texlist
-from address import section_addresses
-from address import rawaddress
-from helpers import verify_file_arg_o
-from helpers import verify_file_arg_b
-from world_transform import transform
+from .texlist import Texlist
+from .address import section_addresses
+from .address import rawaddress
+from .helpers import verify_file_arg_o
+from .helpers import verify_file_arg_b
+from .world_transform import transform
 import operator
 
 class Chunk(Node) :

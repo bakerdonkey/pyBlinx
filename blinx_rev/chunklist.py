@@ -1,12 +1,12 @@
-from node import Node
-from chunk import Chunk
-from texlist import Texlist
 from struct import unpack
-from address import section_addresses
-from address import rawaddress
-from address import virtaddress
-from helpers import verify_file_arg_b
-from helpers import verify_file_arg_o
+from .node import Node
+from .chunk import Chunk
+from .texlist import Texlist
+from .address import section_addresses
+from .address import rawaddress
+from .address import virtaddress
+from .helpers import verify_file_arg_b
+from .helpers import verify_file_arg_o
 
 class Chunklist :
     section_table = section_addresses()
