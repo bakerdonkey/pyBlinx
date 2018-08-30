@@ -1,8 +1,8 @@
-from .tree import Tree
-from .chunk import Chunk
-from .chunklist import Chunklist
-from .texlist import Texlist
-from .address import section_addresses
+from tree import Tree
+from chunk import Chunk
+from chunklist import Chunklist
+from texlist import Texlist
+from address import section_addresses
 from argparse import ArgumentParser
 from tkinter import filedialog
 from tkinter import Tk
@@ -36,7 +36,7 @@ def main() :
 
         tree = Tree(xbe, coffset, sect, texlist)
         tree.build_tree_rec(tree.root)
-        tree.parse_chunks()
+        tree.parse_chunks(verts=True, tris=False)
         tree.write(out_directory)
         
 #        chunklist = Chunklist(xbe, coffset, sect, texlist)

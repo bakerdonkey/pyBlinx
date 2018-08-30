@@ -1,4 +1,4 @@
-# Blinx Rev
+# pyBlinx
 A tool for extracting 3d assets from BLiNX: The Time Sweeper. Information on patterns and format is available in `./docs`, which will be updated as research progresses. Requires Python 3.5+.
 
 ### Getting Started
@@ -14,11 +14,13 @@ To extract an asset, you will need:
 
 #### Usage
 ```
-python blinx_rev -co GEOMETRY_ADDRESS -so TEXTURE_ADDRESS -s SECTION
+python pyblinx -co GEOMETRY_ADDRESS -so TEXTURE_ADDRESS -s SECTION
 ```
-Use `--help` for full definitions of arguments.
+Use `--help` for full definitions of arguments. Check `./docs` for information on how to find addresses and how to calculate virtual addresses
 
-Sample geometry and texture addresses are in `./data/entries.csv`. Blinx_rev does not currently support extracting character models.
+Sample geometry and texture addresses are in `./data/entries.csv`. pyBlinx does not currently support extracting character models.
+
+### Examples
 
 ![16 Ton](https://s15.postimg.cc/ot5s9pqwr/16ton_tex.png)
 ![arrow](https://s15.postimg.cc/ydugtg723/arrow_signs.png)

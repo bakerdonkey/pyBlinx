@@ -1,8 +1,8 @@
 from struct import unpack
-from .node import Node
-from .chunk import Chunk
-from .helpers import verify_file_arg_b
-from .helpers import verify_file_arg_o
+from node import Node
+from chunk import Chunk
+from helpers import verify_file_arg_b
+from helpers import verify_file_arg_o
 import operator
 
 import time
@@ -50,7 +50,7 @@ class Tree :
 
             self.build_tree_rec(node.right_node, level - 1)
     
-    def parse_chunks(self, node=None) :
+    def parse_chunks(self, node=None, verts=True, tris=True) :
         '''
         Recurse through tree and parse all chunks. Nodes are not parsed.
         '''
@@ -58,14 +58,16 @@ class Tree :
             node = self.root
 
         if isinstance(node, Chunk) and node.entry is not 0x12 : # FIXME: strange chunk in chronoblob is 0x12. Not verified against others
-            node.parse(world=True)
+            if verts : node.parse_vertices(world=True)
+            if tris : node.parse_triangles()
 
         if node.left is not None :
             
-            self.parse_chunks(node.left_node)
+            self.parse_chunks(node.left_node, verts, tris)
 
         if node.right is not None :
-            self.parse_chunks(node.right_node)
+            self.parse_chunks(node.right_node, verts, tris)
+
 
                 
 

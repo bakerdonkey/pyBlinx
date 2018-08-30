@@ -1,15 +1,17 @@
 #import numpy
 from math import sin
 from math import cos
+from math import pi
 
 
 def transform(vertex, world) :
     '''
     Transform a vertex array by a world coordinate array.
     '''
-    t = translate(vertex, world[0:3])
-    r = rotate(t, world[3:6])
-    v = scale(r, world[6:9])
+    v = vertex
+    v = scale(v, world[6:9])
+    #v = rotate(v, world[3:6])
+    v = translate(v, world[0:3])
     
     return v
 
@@ -32,21 +34,21 @@ def rotate(vertex, world) :
     x, y, z = vertex[0], vertex[1], vertex[2]
 
     # x axis rotation
-    q = world[0]
+    q = world[0] * pi * 2
     x_prime = x
     y_prime = y*cos(q) - z*sin(q)
     z_prime = y*sin(q) + z*cos(q)
     x, y, z = x_prime, y_prime, z_prime
 
     # y axis rotation
-    q = world[1]
+    q = world[2] * pi * 2
     x_prime = z*sin(q) + x*cos(q)
     y_prime = y
     z_prime = z*cos(q) - x*sin(q)
     x, y, z = x_prime, y_prime, z_prime
 
     # z axis rotation
-    q = world[2]
+    q = world[1] * pi * 2
     x_prime = x*cos(q) - y*sin(q)
     y_prime = x*sin(q) + y*cos(q)    
     z_prime = z
