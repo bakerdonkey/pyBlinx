@@ -1,6 +1,6 @@
 # Blinx_rev: Reverse Engineering Notes
 
-## Foreward
+## Forward
 This is my first foray into reverse engineering. Information on data structures contained within the game’s files included in this document came from observing patterns in static binary data and drawing conclusions. I wrote it all in Python 3. Having never coded in Python in the past, it's been quite the learning experience. I used [XBEExplorer](http://dxbx-emu.com/information/xbeexplorer/) for virtual and raw addresses, [dexbe](http://www.theisozone.com/downloads/xbox/tools/dexbe-eur/) to extract section files, and [HxD](https://mh-nexus.de/en/hxd/) as a primary hex editor. I extend a warm thanks to everyone on the BLiNX Corps discord server for assisting research and helping along the way. My initial inspiration for this project was from following [JSRF Inside](http://jsrf-inside.blogspot.com/).
 
 ## Definitions
@@ -40,19 +40,18 @@ The individual nodes that populate a __Model Tree__. Every node contains a __hea
 
 ```
         struct header {
-
-0x0        	u_int32         entry;          // chunk entry point
-0x4        	void*           block;          // pointer to chunk block
-0x8        	float32[9]      world;          // coordnates of chunk in current context
-0x44        chunk*          left;           // pointer to left child (inherets coordinates)
-0x48        chunk*          right;          // pointer to right child (same coordinate context)
-        } chunk;
+0x0         u_int32         entry;          // chunk entry point
+0x4         void*           block;          // pointer to chunk block
+0x8         float32[9]      world;          // coordinates of chunk in current context
+0x44        node*           left;           // pointer to left child (inherits coordinates)
+0x48        node*           right;          // pointer to right child (same coordinate context)
+        };
 ```
 
 ## Node types
 
 ### Pure
-Superclass as defined above. The block pointer is blank, but still has an entry, coordnates, and may have children
+Superclass as defined above. The block pointer is blank, but still has an entry, coordinates, and may have children
 
 ### Chunks
 Subclass of __node__ that holds 3d model data. All chunks have a __header__ with a valid pointer to a __block__, which has pointers to the __vertex data__ and __triangle data__. Non-standard chunks (such as character models) may not contain all regions of data, but do have the same offsets. Pointers to `NULL` are empty. 
@@ -68,7 +67,7 @@ Subclass of __node__ that holds 3d model data. All chunks have a __header__ with
 
 
 #### Vertex data
-Vertices are stored in a list called a __vertex list__. This list has a 16-byte header. At `0x6` in the header is the count, which defines the length of the list. The rest of the header is being activly researched, since character models have unique vertex list formats and different header values.
+Vertices are stored in a list called a __vertex list__. This list has a 16-byte header. At `0x6` in the header is the count, which defines the length of the list. The rest of the header is being actively researched, since character models have unique vertex list formats and different header values.
 
 The list itself contains triples of floats that define x, y, and z coordinates for each vertex in the model. Each triple is delimited by 4 bytes. The usage of these 4 bytes is unknown and is ignored.
 
