@@ -133,7 +133,7 @@ class Chunk(Node) :
         self.triangles = t
         return t
         
-    def parse_tripart(self) :
+    def parse_tripart(self, type='texture') :
         '''
         Reads tripart. Returns tuple (tripart, texlist index, last) where tripart is a list of tuples (vertex index, tex_x, tex_y),
         texlist index assigns the texture, and last is the escape flag.
@@ -170,11 +170,14 @@ class Chunk(Node) :
             s_length = abs(unpack('h', f.read(2))[0])
 
             for _ in range(s_length) :
-                raw_point = list(unpack('hhh', f.read(6)))
-                raw_point[0] += 1               #TODO: clean up
-                raw_point[1] /= 255.0
-                raw_point[2] /= -255.0
-                raw_point[2] += 1.0
+                if type = 'texture' :
+                    raw_point = list(unpack('hhh', f.read(6)))
+                    raw_point[0] += 1               #TODO: clean up
+                    raw_point[1] /= 255.0
+                    raw_point[2] /= -255.0
+                    raw_point[2] += 1.0
+                else :
+                    raw_point = [unpack('h', f.read(2))[0], 0, 0]
                 data_point = tuple(raw_point)
                 strip.append(data_point)
 
