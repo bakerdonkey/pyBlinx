@@ -28,7 +28,9 @@ class Texlist :
 
         self.name = 'tl_'+section+'_'+hex(self.offset)
 
-
+    def __str__(self) :
+        return self.name
+        
     def parse_header(self) :
         '''
         Read header stub and return its data.

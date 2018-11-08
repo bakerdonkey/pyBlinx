@@ -26,6 +26,7 @@ def main() :
 
     coffset = 0xDE9464 if args.coffset is None else args.coffset
     soffset = 0xD80280 if args.soffset is None else args.soffset
+    
 
     with open(in_directory + '/default.xbe', 'rb') as xbe :
         texlist = Texlist(xbe, soffset, sect)

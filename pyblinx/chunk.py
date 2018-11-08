@@ -26,6 +26,8 @@ class Chunk(Node) :
         if full is True :
             self.vertices, self.triangles = self.parse(world=True)
 
+    def __str__(self) :
+        return self.name
 
     def parse_block(self) :
         '''
@@ -224,6 +226,9 @@ class Chunk(Node) :
                 vt += 2
 
     def write_texcoords(self, file) :
+        '''
+        Given an open file discriptor or path, write texture coordinates as indexes as they appear in the triangle array
+        '''
         f = verify_file_arg_o(file)
         triangles = self.triangles
 
