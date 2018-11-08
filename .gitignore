@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 
 vertices.py
+.DS_Store
+#*
+.#*
