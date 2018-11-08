@@ -172,7 +172,7 @@ class Chunk(Node) :
             s_length = abs(unpack('h', f.read(2))[0])
 
             for _ in range(s_length) :
-                if type = 'texture' :
+                if type == 'texture' :
                     raw_point = list(unpack('hhh', f.read(6)))
                     raw_point[0] += 1               #TODO: clean up
                     raw_point[1] /= 255.0

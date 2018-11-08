@@ -8,6 +8,7 @@ from tkinter import filedialog
 from tkinter import Tk
 import os
 
+
 def main() :
     #TODO: Restructure, clean up extra arguments
     parser = ArgumentParser()
