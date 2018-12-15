@@ -1,7 +1,7 @@
 from struct import unpack
 from argparse import ArgumentParser
-from blinx_rev.helpers import verify_file_arg_b
-from blinx_rev.helpers import verify_file_arg_o
+from pyblinx.helpers import verify_file_arg_b
+from pyblinx.helpers import verify_file_arg_o
 
 def main() :
     parser = ArgumentParser()
