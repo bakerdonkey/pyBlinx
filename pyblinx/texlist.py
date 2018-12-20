@@ -11,7 +11,7 @@ class Texlist :
         self.xbe = verify_file_arg_b(xbe)
 
         self.offset = rawaddress(entry_offset, section, Texlist.section_table)
-
+        print(hex(self.offset))
         self.section = section
 
         self.header = self.parse_header()

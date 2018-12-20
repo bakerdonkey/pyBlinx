@@ -9,7 +9,7 @@ def transform(vertex, world) :
     Transform a vertex array by a world coordinate array.
     '''
     v = vertex
-    v = scale(v, world[6:9])
+    #v = scale(v, world[6:9])
     #v = rotate(v, world[3:6])
     v = translate(v, world[0:3])
     

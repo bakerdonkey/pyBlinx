@@ -90,7 +90,7 @@ class Chunk(Node) :
 
             if world is True :
                 w = tuple(map(operator.add, self.world_coords, self.parent_coords))
-                #print(str(self.world_coords[:3]) + ' + ' + str(self.parent_coords[:3]) + ' = ' + str(w[:3]))
+                # print(str(self.world_coords[:3]) + ' + ' + str(self.parent_coords[:3]) + ' = ' + str(w[:3]))
                 word = transform(word, w)
 
             v.append(tuple(word))
@@ -123,12 +123,13 @@ class Chunk(Node) :
 
         i = 0
         while(True) :
-            print('\tParsing tripart {}'.format(i))
+            print(f'\tParsing tripart {i}')
             i += 1
 
             tripart = self.parse_tripart()
+            #print(f't[3] = {tripart[3]}')
             if(tripart[0] is not None and tripart[1] is not None) :     #TODO: improve readability
-                t.append((tripart[0], tripart[1]))
+                t.append((tripart[0], tripart[1], tripart[3]))
             if tripart[2] : break
             
         print('Done')
@@ -137,8 +138,8 @@ class Chunk(Node) :
         
     def parse_tripart(self, type='texture') :
         '''
-        Reads tripart. Returns tuple (tripart, texlist index, last) where tripart is a list of tuples (vertex index, tex_x, tex_y),
-        texlist index assigns the texture, and last is the escape flag.
+        Reads tripart. Returns tuple (tripart, texlist index, last, simple) where tripart is a list of tuples (vertex index, tex_x, tex_y),
+        texlist index assigns the texture, last is the escape flag, and simple flag is true if simple tripart.
         '''
         f = self.xbe
 
@@ -147,12 +148,17 @@ class Chunk(Node) :
         type_spec = unpack('h', f.read(2))[0]
 
         # Temporary simple tristrip handling
+        simple = False
+        texlist_index=0
         if (type_spec - 0x0408) % 0x1000 != 0 :
             print('\tNon-texture tripart detected. Aborting')
+            type='simple'
             print(hex(type_spec - 0x0408))
-            return(None, None, True)   
-
-        texlist_index = unpack('h', f.read(2))[0] ^ 0x4000     
+            simple=True
+            return(None, None, True, True)   
+        else :
+            texlist_index = unpack('h', f.read(2))[0] ^ 0x4000   
+              
         f.seek(2, 1)
         
         # Check if last tripart 
@@ -179,14 +185,15 @@ class Chunk(Node) :
                     raw_point[2] /= -255.0
                     raw_point[2] += 1.0
                 else :
-                    raw_point = [unpack('h', f.read(2))[0], 0, 0]
+                    raw_point = [unpack('h', f.read(2))[0] + 1, 0, 0]
+
                 data_point = tuple(raw_point)
                 strip.append(data_point)
 
             t.append(strip)
 
-        f.seek(tripart_end)
-        return (t, texlist_index, escape)
+        f.seek(tripart_end) # why?
+        return (t, texlist_index, escape, simple,)
 
     def write_vertices(self, file) :
         f = verify_file_arg_o(file)
@@ -214,16 +221,22 @@ class Chunk(Node) :
         triangles = self.triangles
         for tp in triangles :
             if matlist is not None :
-                ln = 'usemtl {}\n'.format(matlist[tp[1]])
+                ln = f'usemtl {matlist[tp[1]]}\n'
                 f.write(ln)
-
-            for ts in tp[0] :
-                for c in range(len(ts) - 2) :
-                    if c % 2 == 0 : ln = 'f {v0}/{vt0} {v1}/{vt1} {v2}/{vt2}\n'.format(v0=ts[c][0], vt0=vt, v1=ts[c+1][0], vt1=vt+1, v2=ts[c+2][0], vt2=vt+2)
-                    else :  ln = 'f {v1}/{vt1} {v0}/{vt0} {v2}/{vt2}\n'.format(v0=ts[c][0], vt0=vt, v1=ts[c+1][0], vt1=vt+1, v2=ts[c+2][0], vt2=vt+2)
-                    vt += 1
-                    f.write(ln)
-                vt += 2
+            if tp[2] is False :
+                for ts in tp[0] :
+                    for c in range(len(ts) - 2) :
+                        if c % 2 == 0 : ln = f'f {ts[c][0]}/{vt} {ts[c+1][0]}/{vt+1} {ts[c+2][0]}/{vt+2}\n'
+                        else :  ln = f'f {ts[c+1][0]}/{vt+1} {ts[c][0]}/{vt} {ts[c+2][0]}/{vt+2}\n'
+                        vt += 1
+                        f.write(ln)
+                    vt += 2
+            else :
+                for ts in tp[0] :
+                    for c in range(len(ts) - 2) :
+                        if c % 2 == 0 : ln = f'f {ts[c][0]} {ts[c+1][0]} {ts[c+2][0]}\n'
+                        else :  ln = f'f {ts[c+1][0]} {ts[c][0]} {ts[c+2][0]}\n'
+                        f.write(ln)
 
     def write_texcoords(self, file) :
         '''
@@ -235,10 +248,12 @@ class Chunk(Node) :
         if not triangles :
             print('\tNo texcoords found!')
             return None
-
+        
+        #TODO: Clean up
         for tp in triangles :
-            for ts in tp[0] :
-                for c in ts :
-                    vt = list(c[1:])
-                    ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
-                    f.write(ln)
+            if tp[2] is False :
+                for ts in tp[0] :
+                    for c in ts :
+                        vt = list(c[1:])
+                        ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
+                        f.write(ln)

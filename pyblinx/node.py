@@ -25,6 +25,7 @@ class Node :
         self.right = header['right_ptr']
 
         self.parent_coords = parent_coords if parent_coords is not None else (0, 0, 0, 0, 0, 0, 0, 0, 0,)
+        print(self.parent_coords)
         self.left_node = None
         self.right_node = None
 

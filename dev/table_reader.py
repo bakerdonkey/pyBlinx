@@ -49,8 +49,8 @@ with open(path, 'rb') as f:
 
         
 
-        #li_pointer = hex(unpack( '<I', pack('>I', raw_pointer))[0])
-        li_pointer = hex(raw_pointer)
+        li_pointer = hex(unpack( '<I', pack('>I', raw_pointer))[0])
+        #li_pointer = hex(raw_pointer)
         pointer_list.append((li_pointer, local_offset,))
 
 with open(f'./{hex(offset)}_{section}.txt', 'w+') as w :
