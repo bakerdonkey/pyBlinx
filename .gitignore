@@ -103,7 +103,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-vertices.py
+#vertices.py
 .DS_Store
 #*
 .#*
