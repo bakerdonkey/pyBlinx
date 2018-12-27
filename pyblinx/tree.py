@@ -8,13 +8,16 @@ import operator
 import time
 
 class Tree :
-    def __init__(self, xbe, entry_offset, section, texlist=None) :
+    def __init__(self, xbe, entry_offset, section, texlist=None, is_chunk=False) :
         self.xbe = verify_file_arg_b(xbe)
         self.section = section
         self.texlist = texlist
          
         f = self.xbe
-        self.root = Node(f, entry_offset, self.section, texlist)
+        if is_chunk :
+            self.root = Chunk(f, entry_offset, self.section, texlist)
+        else :
+            self.root = Node(f, entry_offset, self.section, texlist)
 
     def build_tree_rec(self, node=None, level=0) :
         '''

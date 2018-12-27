@@ -20,7 +20,8 @@ def main() :
     parser.add_argument('-co', '--coffset', help='Chunk entry offset (virtual address)', type=lambda x: int(x,16))
     parser.add_argument('-so', '--soffset', help='Stringlist file entry offset (virtual address)', type=lambda x: int(x,16))
     parser.add_argument('-to', '--toffset', help='Pointer table offset', type=str)
-    parser.add_argument('-mi', '--modelindex', help='index of model to select from pointer table', type=int)
+    parser.add_argument('-mi', '--modelindex', help='Index of model to select from pointer table', type=int)
+    parser.add_argument('-c', help='Node at root is a chunk', action='store_true')
 
     args = parser.parse_args()
 
@@ -34,9 +35,10 @@ def main() :
     models = [(coffset, soffset, sect)]
 
     with open(in_directory + '/default.xbe', 'rb') as xbe :
-        m = parse_map_table(xbe, selection=args.modelindex)
-        for mod in m: print(f'{hex(mod[0])} {hex(mod[1])} {mod[2]}')
-        run(m, xbe, in_directory, out_directory)
+        #m = parse_map_table(xbe, selection=args.modelindex)
+        #for mod in m: print(f'{hex(mod[0])} {hex(mod[1])} {mod[2]}')
+        m = models
+        run(m, xbe, in_directory, out_directory, root_is_chunk=args.c)
 
 def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
         f = xbe
@@ -64,7 +66,7 @@ def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
             models = (models[selection],)
         return models
 
-def run(models, xbe, in_directory, out_directory) :
+def run(models, xbe, in_directory, out_directory, root_is_chunk=False) :
     for model in models :
         print(f'Model {model[2]}: {hex(model[0])}, {hex(model[1])}')
         geo_offset = model[0]
@@ -78,7 +80,7 @@ def run(models, xbe, in_directory, out_directory) :
         with open(f'{out_directory}/{section}/{texlist.name}.mtl', 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
-        tree = Tree(xbe, geo_offset, section, texlist)
+        tree = Tree(xbe, geo_offset, section, texlist, is_chunk=root_is_chunk)
         tree.build_tree_rec(tree.root)
         tree.parse_chunks(verts=True, tris=True)
         tree.write(f'{out_directory}/{section}')
