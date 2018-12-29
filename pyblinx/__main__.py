@@ -8,6 +8,7 @@ from tkinter import filedialog
 from tkinter import Tk
 from struct import unpack
 from pathlib import Path
+from address import find_section
 import os
 
 
@@ -37,8 +38,26 @@ def main() :
     with open(in_directory + '/default.xbe', 'rb') as xbe :
         #m = parse_map_table(xbe, selection=args.modelindex)
         #for mod in m: print(f'{hex(mod[0])} {hex(mod[1])} {mod[2]}')
-        m = models
+
+        #m = models
+        m = parse_prop_table(xbe)
         run(m, xbe, in_directory, out_directory, root_is_chunk=args.c)
+
+def parse_prop_table(xbe, toffset=(0x159da0 + 0x001C1000), count=116) :
+    f = xbe
+    f.seek(toffset)
+    models = []
+    section = 'DATA'
+    for _ in range(count) :
+        m = list(unpack('II', f.read(8)))
+        section = find_section(m[0])
+        m.append(section)
+        m = tuple(m)
+        if m[0] != 0 and m[1] != 0 and m[2] == 'DATA':
+            models.append(m)
+        f.seek(72, 1)
+        print(m)
+    return models
 
 def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
         f = xbe

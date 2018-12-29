@@ -48,14 +48,21 @@ def virtaddress(rawaddress, section, addresses) :
     return virtaddress
 
 #TODO: Make more pythonic. Use a generator or something clever.
-def find_section(virtaddress) :
+def find_section(virtaddress, default='DATA') :
     '''
     Finds the section containg a virtual address.
     '''
+    section = default
     with open('data/sectionaddress.csv', 'r') as csv_file :
         reader = csv.reader(csv_file)
-        line = next()
-        #TODO: finish!
+        next(reader)
+        for line in reader :
+            base = int(line[1], 16)
+            size = int(line[3], 16)
+            if virtaddress > base and virtaddress < (base + size) :
+                section = line[0]
+    
+    return section
 
 
 def __section_index(section) :
