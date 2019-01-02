@@ -1,10 +1,8 @@
 from node import Node
 from struct import unpack
 from texlist import Texlist
-from address import section_addresses
-from address import rawaddress
-from helpers import verify_file_arg_o
-from helpers import verify_file_arg_b
+from address import section_addresses, rawaddress
+from helpers import verify_file_arg_o, verify_file_arg_b
 from world_transform import transform
 import operator
 
@@ -108,7 +106,7 @@ class Chunk(Node) :
         f = self.xbe
         f.seek(self.toffset)
 
-        print('Parsing triangles at {}... '.format(hex(self.toffset)))
+        print(f'Parsing triangles at {hex(self.toffset)}... ')
 
         # Hacky fix around unknown value at 0xbc58 in MDLEN. Probably others like it.
         if unpack('i', f.read(4))[0] > 50 :
@@ -199,43 +197,53 @@ class Chunk(Node) :
         f = verify_file_arg_o(file)
 
         verts = self.vertices
-        print('Writing vertices to {}'.format(f.name))
+        print(f'Writing {len(verts)} vertices to {f.name}')
         if not verts :
             print('\tNo vertices found!')
             return None
         
         for v in verts :
-            ln = 'v {} {} {}\n'.format(v[0], v[1], v[2])
+            ln = f'v {v[0]} {v[1]} {v[2]}\n'
             f.write(ln)
 
     def write_triangles(self, file, matlist=None) : 
         f = verify_file_arg_o(file)
 
-        if not self.triangles :
+        triangles = self.triangles
+        if not triangles :
             print('\tNo triangles found!')
             return None
+        else :
+            print(f'Writing {len(triangles)} triparts to {f.name}')
 
         #TODO: write non-texture materials
         #TODO: implement material writing
+        #TODO: remove redundant code
         vt = 1
-        triangles = self.triangles
         for tp in triangles :
             if matlist is not None :
                 ln = f'usemtl {matlist[tp[1]]}\n'
                 f.write(ln)
+
             if tp[2] is False :
                 for ts in tp[0] :
                     for c in range(len(ts) - 2) :
-                        if c % 2 == 0 : ln = f'f {ts[c][0]}/{vt} {ts[c+1][0]}/{vt+1} {ts[c+2][0]}/{vt+2}\n'
-                        else :  ln = f'f {ts[c+1][0]}/{vt+1} {ts[c][0]}/{vt} {ts[c+2][0]}/{vt+2}\n'
+                        if c % 2 == 0 : 
+                            ln = f'f {ts[c][0]}/{vt} {ts[c+1][0]}/{vt+1} {ts[c+2][0]}/{vt+2}\n'
+                        else :  
+                            ln = f'f {ts[c+1][0]}/{vt+1} {ts[c][0]}/{vt} {ts[c+2][0]}/{vt+2}\n'
+
                         vt += 1
                         f.write(ln)
                     vt += 2
             else :
                 for ts in tp[0] :
                     for c in range(len(ts) - 2) :
-                        if c % 2 == 0 : ln = f'f {ts[c][0]} {ts[c+1][0]} {ts[c+2][0]}\n'
-                        else :  ln = f'f {ts[c+1][0]} {ts[c][0]} {ts[c+2][0]}\n'
+                        if c % 2 == 0 : 
+                            ln = f'f {ts[c][0]} {ts[c+1][0]} {ts[c+2][0]}\n'
+                        else :  
+                            ln = f'f {ts[c+1][0]} {ts[c][0]} {ts[c+2][0]}\n'
+
                         f.write(ln)
 
     def write_texcoords(self, file) :
@@ -255,5 +263,5 @@ class Chunk(Node) :
                 for ts in tp[0] :
                     for c in ts :
                         vt = list(c[1:])
-                        ln = 'vt {u} {v}\n'.format(u=str(vt[0]), v=str(vt[1]))
+                        ln = f'vt {vt[0]} {vt[1]}\n'
                         f.write(ln)

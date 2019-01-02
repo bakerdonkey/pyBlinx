@@ -1,16 +1,12 @@
+import os
 from tree import Tree
 from chunk import Chunk
-from chunklist import Chunklist
 from texlist import Texlist
-from address import section_addresses
-from address import rawaddress
+from address import section_addresses, rawaddress, find_section
 from argparse import ArgumentParser
-from tkinter import filedialog
-from tkinter import Tk
+from tkinter import Tk, filedialog
 from struct import unpack
 from pathlib import Path
-from address import find_section
-import os
 
 
 def main() :
@@ -23,7 +19,6 @@ def main() :
     parser.add_argument('-so', '--soffset', help='Stringlist file entry offset (virtual address)', type=lambda x: int(x,16))
     parser.add_argument('-to', '--toffset', help='Pointer table offset', type=str)
     parser.add_argument('-mi', '--modelindex', help='Index of model to select from pointer table', type=int)
-    parser.add_argument('-c', help='Node at root is a chunk', action='store_true')
 
     args = parser.parse_args()
 
@@ -64,19 +59,19 @@ def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
         f = xbe
         f.seek(toffset)
         models = []
-        sections =  [
-                        ['MAP11','MAP12','MAP13','MDLB1'],
-                        ['MAP21','MAP22','MAP23','MDLB2'],
-                        ['MAP31','MAP32','MAP33','MDLB3'],
-                        ['MAP41','MAP42','MAP43','MDLB4'],
-                        ['MAP51','MAP52','MAP53','MDLB5'],
-                        ['MAP61','MAP62','MAP63','MDLB6'],
-                        ['MAP11','MAP11','MAP11','MAP11'],
-                        ['MAP81','MAP82','MAP83','MDLB8'],
-                        ['MAP91','MAP92','MAP93','MDLB9'],
-                        ['MDLB10','MDLB102','MAP11','MDLB10'],
-                    ]
-        for stage in sections :
+        maps =  [
+                    ['MAP11','MAP12','MAP13','MDLB1'],
+                    ['MAP21','MAP22','MAP23','MDLB2'],
+                    ['MAP31','MAP32','MAP33','MDLB3'],
+                    ['MAP41','MAP42','MAP43','MDLB4'],
+                    ['MAP51','MAP52','MAP53','MDLB5'],
+                    ['MAP61','MAP62','MAP63','MDLB6'],
+                    ['MAP11','MAP11','MAP11','MAP11'],
+                    ['MAP81','MAP82','MAP83','MDLB8'],
+                    ['MAP91','MAP92','MAP93','MDLB9'],
+                    ['MDLB10','MDLB102','MAP11','MDLB10'],
+                ]
+        for stage in maps :
             for section in stage :
                 map_pointers = unpack('III', f.read(12))
                 m = (map_pointers[1], map_pointers[2], section)
@@ -87,23 +82,23 @@ def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
         return models
 
 def run(models, xbe, in_directory, out_directory) :
+    i = 0
     for model in models :
-        print(f'Model {model[2]}: {hex(model[0])}, {hex(model[1])}')
         geo_offset = model[0]
         texlist_offset = model[1]
         section = model[2]
+        print(f'Model {i} in {section}: Geometry at {hex(geo_offset)} with texlist at {hex(texlist_offset)}')
+        i += 1
 
+        # TODO: fully implement pathlib for paths
         outpath = Path(f'{out_directory}/{section}').mkdir(parents=True, exist_ok=True)
 
         texlist = Texlist(xbe, texlist_offset, section)
         texlist.parse_strlist()
-
-        root_is_chunk = block_exists(xbe, geo_offset, section)
-
         with open(f'{out_directory}/{section}/{texlist.name}.mtl', 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
-        tree = Tree(xbe, geo_offset, section, texlist, is_chunk=root_is_chunk)
+        tree = Tree(xbe, geo_offset, section, texlist)
         tree.build_tree_rec(tree.root)
         tree.parse_chunks(verts=True, tris=True)
         tree.write(f'{out_directory}/{section}')
@@ -118,15 +113,6 @@ def run(models, xbe, in_directory, out_directory) :
 #        chunk.parse_triangles()
 #        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
 #            chunk.write_texcoords(f)
-
-def block_exists(f, offset, section) :
-    raw_offset = rawaddress(offset, section)
-    f.seek(raw_offset + 4)
-    block_pointer = unpack('I', f.read(4))[0]
-    if block_pointer != 0 :
-        return True
-    else :
-        return False
 
 def __tk_load_dir(dir_type) :
     Tk().withdraw()
