@@ -3,6 +3,7 @@ from chunk import Chunk
 from chunklist import Chunklist
 from texlist import Texlist
 from address import section_addresses
+from address import rawaddress
 from argparse import ArgumentParser
 from tkinter import filedialog
 from tkinter import Tk
@@ -36,12 +37,12 @@ def main() :
     models = [(coffset, soffset, sect)]
 
     with open(in_directory + '/default.xbe', 'rb') as xbe :
-        #m = parse_map_table(xbe, selection=args.modelindex)
+        m = parse_map_table(xbe, selection=args.modelindex)
         #for mod in m: print(f'{hex(mod[0])} {hex(mod[1])} {mod[2]}')
 
         #m = models
-        m = parse_prop_table(xbe)
-        run(m, xbe, in_directory, out_directory, root_is_chunk=args.c)
+        #m = parse_prop_table(xbe)
+        run(m, xbe, in_directory, out_directory)
 
 def parse_prop_table(xbe, toffset=(0x159da0 + 0x001C1000), count=116) :
     f = xbe
@@ -53,7 +54,7 @@ def parse_prop_table(xbe, toffset=(0x159da0 + 0x001C1000), count=116) :
         section = find_section(m[0])
         m.append(section)
         m = tuple(m)
-        if m[0] != 0 and m[1] != 0 and m[2] == 'DATA':
+        if m[0] != 0 and m[1] != 0 and m[2] != 'MDLEN':
             models.append(m)
         f.seek(72, 1)
         print(m)
@@ -85,7 +86,7 @@ def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
             models = (models[selection],)
         return models
 
-def run(models, xbe, in_directory, out_directory, root_is_chunk=False) :
+def run(models, xbe, in_directory, out_directory) :
     for model in models :
         print(f'Model {model[2]}: {hex(model[0])}, {hex(model[1])}')
         geo_offset = model[0]
@@ -96,6 +97,9 @@ def run(models, xbe, in_directory, out_directory, root_is_chunk=False) :
 
         texlist = Texlist(xbe, texlist_offset, section)
         texlist.parse_strlist()
+
+        root_is_chunk = block_exists(xbe, geo_offset, section)
+
         with open(f'{out_directory}/{section}/{texlist.name}.mtl', 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
@@ -115,6 +119,14 @@ def run(models, xbe, in_directory, out_directory, root_is_chunk=False) :
 #        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
 #            chunk.write_texcoords(f)
 
+def block_exists(f, offset, section) :
+    raw_offset = rawaddress(offset, section)
+    f.seek(raw_offset + 4)
+    block_pointer = unpack('I', f.read(4))[0]
+    if block_pointer != 0 :
+        return True
+    else :
+        return False
 
 def __tk_load_dir(dir_type) :
     Tk().withdraw()
