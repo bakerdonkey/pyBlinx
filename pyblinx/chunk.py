@@ -126,18 +126,18 @@ class Chunk(Node) :
             i += 1
 
             j = 0
+            prev_tindex = 0
             while(True) :
                 print(f'\t\tParsing tripart {j}')
                 j += 1
                 
-                tripart = self.parse_tripart()
+                tripart = self.parse_tripart(prev_tindex=prev_tindex)
                 if(tripart[0] is not None and tripart[1] is not None) :     #TODO: improve readability
                     t.append((tripart[0], tripart[1]))
+                    prev_tindex = tripart[1]
 
                 if tripart[2] : 
                     break
-
-                
 
             if tripart[3] :
                 break
@@ -146,7 +146,7 @@ class Chunk(Node) :
         self.triangles = t
         return t
         
-    def parse_tripart(self, type='texture') :
+    def parse_tripart(self, type='texture', prev_tindex=0) :
         '''
         Reads tripart. Returns tuple (tripart, texlist index, last, simple) where tripart is a list of tuples (vertex index, tex_x, tex_y),
         texlist index assigns the texture, last is the escape flag, and simple flag is true if simple tripart.
@@ -156,12 +156,20 @@ class Chunk(Node) :
         t = []
         escape = False
         final = True
+        retain_tindex = False
+
         type_spec = unpack('h', f.read(2))[0]
 
         # Temporary simple tristrip handling
         # TODO: reuse code to imporve readability
+
+        
         texlist_index=0
-        if (type_spec - 0x0408) % 0x1000 != 0 :
+        if type_spec == 0x241 :
+            print(f'Using prev tindex {prev_tindex}')
+            texlist_index = prev_tindex
+
+        elif (type_spec - 0x0408) % 0x1000 != 0 :
             print('\t\t\tNon-texture tripart.')
             type='simple'
 
@@ -178,8 +186,7 @@ class Chunk(Node) :
                 return(None, None, False, True)
         else :
             texlist_index = unpack('h', f.read(2))[0] ^ 0x4000   
-              
-        f.seek(2, 1)
+            f.seek(2, 1)
         
 
         # Check if last tripart 
@@ -198,6 +205,7 @@ class Chunk(Node) :
 
         if can_ints[0] == 0x241 :
             print('\t\t\tTEXTURE MAGIC NUMBER')
+            retain_tindex = True
             escape = False
 
         if esc_candidate == b'\xff\x00\x00\x00' :  
