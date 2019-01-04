@@ -6,6 +6,10 @@ from helpers import verify_file_arg_o, verify_file_arg_b
 from world_transform import transform
 import operator
 
+TEXTURE_MAGIC = 0x0241
+TEXTURE_TYPE_SPEC = 0x0408
+ESCAPE = b'\xff\x00\x00\x00'
+
 class Chunk(Node) :
     section_table = section_addresses()
 
@@ -102,24 +106,21 @@ class Chunk(Node) :
 
     def parse_triangles(self) :
         '''
-        Read tripart list from xbe. Returns a list of tuples (tripart, texlist index) as defined in parse_tripart() without escape flag
+        Read tripart list from xbe. Returns a list of tuples (tripart, texlist index) as defined in parse_tripart() without escape flags.
         '''
         f = self.xbe
         f.seek(self.toffset)
-        #print(f'{hex(self.offset)}')
         print(f'\tParsing triangles at {hex(self.toffset)}... ')
 
         # Hacky fix around unknown value at 0xbc58 in MDLEN. Probably others like it.
         if unpack('i', f.read(4))[0] > 50 :
             f.seek(-4, 1)
 
-        # TODO: Research header flavors and usage.
         f.seek(2, 1)
         header_size = unpack('h', f.read(2))[0] * 2
         f.seek(header_size, 1)
 
         t = []
-
         i = 0
         while(True) :
             print(f'\tParsing triangle section {i}')
@@ -139,7 +140,7 @@ class Chunk(Node) :
                 if tripart[2] : 
                     break
 
-            if tripart[3] :
+            if tripart[3] :                                                 #FIXME: handle case where tripart = None
                 break
 
         print('\tDone\n')
@@ -148,50 +149,62 @@ class Chunk(Node) :
         
     def parse_tripart(self, type='texture', prev_tindex=0) :
         '''
-        Reads tripart. Returns tuple (tripart, texlist index, last, simple) where tripart is a list of tuples (vertex index, tex_x, tex_y),
-        texlist index assigns the texture, last is the escape flag, and simple flag is true if simple tripart.
+        Reads tripart. Returns tuple (tripart, texlist index, last, final) where tripart is a list of tuples (vertex index, tex_x, tex_y),
+        texlist index assigns the texture, last is the escape flag, and final flag is true if there does not exist another triangle section.
         '''
         f = self.xbe
 
         t = []
-        escape = False
-        final = True
-        retain_tindex = False
+        escape = False                                              # Assume this is not the final tripart
+        final = True                                                # Assume this is the final triangle section
 
+        '''
+        First, observe the first two bytes as an int16. This will be used to determine the type of the tripart: simple, textured with declared index,
+        or textured without declared index. pyBlinx current does not support parsing simple triparts, and they will be skipped.
+        '''
         type_spec = unpack('h', f.read(2))[0]
-
-        # Temporary simple tristrip handling
-        # TODO: reuse code to imporve readability
-
-        
+        # TODO: make logical flow for this section more intuitive
         texlist_index=0
-        if type_spec == 0x241 :
-            print(f'Using prev tindex {prev_tindex}')
+
+        '''
+        The case where the texture index is not declared, but the tripart is textured. It uses the texture index passed into the method.
+        '''
+        if type_spec == TEXTURE_MAGIC :
+            print(f'\t\t\t\tUsing prev tindex {prev_tindex}')
             texlist_index = prev_tindex
 
-        elif (type_spec - 0x0408) % 0x1000 != 0 :
+        '''
+        The case where the tripart is simple. The next tripart is probed for the escape symbol, but no actual parsing happens.
+        '''
+        elif (type_spec - TEXTURE_TYPE_SPEC) % 0x1000 != 0 :
             print('\t\t\tNon-texture tripart.')
-            type='simple'
+            type='simple'                                               # Currently unused
 
             tripart_size = unpack('h', f.read(2))[0] * 2
             f.seek(tripart_size, 1)
             tripart_end = f.tell()
             esc_candidate = f.read(4)
-            if esc_candidate == b'\xff\x00\x00\x00' :                # Escape symbol detected
-                print('\t\t\t\tsimple esc found')
+            if esc_candidate == ESCAPE :
+                print('\t\t\t\t ESCAPE SYMBOL FOUND IN SIMPLE TRIPART')
                 return(None, None, True, True)   
             else :
-                print('\t\t\t\tsimple esc not found')
+                print('\t\t\t\tESCAPE SYMBOL NOT FOUND IN SIMPLE TRIPART')
                 f.seek(-4, 1)
                 return(None, None, False, True)
+        '''
+        The case where the tripart's texture index is declared.
+        '''
         else :
             texlist_index = unpack('h', f.read(2))[0] ^ 0x4000   
             f.seek(2, 1)
         
 
-        # Check if last tripart 
-        # TODO: Handle chunks with multiple triangle data regions
-        # TODO: Process SIMPLE tristrips
+        
+        '''
+        This next section navigates to the end of the tripart and probes four bytes. Using different interpretations of these bytes, it determines
+        the behavior after the tristrip is parsed. More specifically, it determines the existence of more triparts or triangle sections. The output 
+        of this section will be passed in the returned tuple as booleans at [2] and [3].
+        '''
         tripart_size = unpack('h', f.read(2))[0] * 2
         f.seek(tripart_size, 1) 
         tripart_end = f.tell()
@@ -199,38 +212,58 @@ class Chunk(Node) :
 
         can_float = unpack('f', esc_candidate)[0]
         can_ints = unpack('HH', esc_candidate)
-
+        '''
+        The first four bytes of tripart headers that declare texture indexes is a float ~2.0. This is hacky and will falsely identify a simple tripart
+        or a tripart that uses the previous texture index. I'm looking to phase this out when possible, since it is nondeterministic and relies on
+        sketchy math.
+        '''
         if can_float < 1.5 : 
-            escape = True       # The first four bytes of tpart headers is a float ~2.0. This will break when encountering a simple tripart
+            escape = True                                            
 
-        if can_ints[0] == 0x241 :
+        '''
+        The case where the next tripart does exist and uses the texture index declared in the current one. This would have been falsely marked positive by
+        the previous check.
+        '''
+        if can_ints[0] == TEXTURE_MAGIC :
             print('\t\t\tTEXTURE MAGIC NUMBER')
-            retain_tindex = True
             escape = False
 
-        if esc_candidate == b'\xff\x00\x00\x00' :  
+        '''
+        The case where the next 4 bytes is the escape symbol, thus terminating triangle parsing after the current tristrip.
+        '''
+        if esc_candidate == ESCAPE :  
             print('\t\t\tESCAPE SYMBOL FOUND')
-            escape = True     # Escape symbol
+            escape = True
 
+        '''
+        The case where the current tristrip is the last in its triangle section but there exists a next triangle section. New triangle sections always 
+        start with 0x25XX 0xYYYY where XX is arbitrary (as far as I know) and YYYY is the size of the header. Headers have not been observed to be larger 
+        than 0x20 bytes.
+        '''
         if (can_ints[0] >> 0x8 == 0x25 and can_ints[1] < 0x20) :
-            print('\t\t\tMORE TRIANGLES')
+            print('\t\t\tANOTHER TRIANGLE SECTION EXISTS')
             final = False 
             escape = True
 
-        f.seek(-(tripart_size + 4), 1)                               # Return to beginning of tripart.
+        f.seek(-(tripart_size + 4), 1)              # Return to beginning of tripart.
 
+
+        '''
+        Parse the tripart.
+        '''
         t_length = unpack('h', f.read(2))[0]
         for i in range(t_length) :
             strip = []
             s_length = abs(unpack('h', f.read(2))[0])
 
-            for _ in range(s_length) :
-                if type == 'texture' :
+            for _ in range(s_length) :  
+                if type == 'texture' :              # type is currently unused and will always be 'texture'.
                     raw_point = list(unpack('hhh', f.read(6)))
                     raw_point[0] += 1               #TODO: clean up
                     raw_point[1] /= 255.0
                     raw_point[2] /= -255.0
                     raw_point[2] += 1.0
+
                 else :
                     raw_point = [unpack('h', f.read(2))[0] + 1, 0, 0]
 
@@ -239,7 +272,7 @@ class Chunk(Node) :
 
             t.append(strip)
 
-        f.seek(tripart_end) 
+        f.seek(tripart_end)                         # Verify file pointer is at end of tripart.
         return (t, texlist_index, escape, final,)
 
     def write_vertices(self, file) :
