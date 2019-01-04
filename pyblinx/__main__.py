@@ -33,8 +33,8 @@ def main() :
 
     with open(in_directory + '/default.xbe', 'rb') as xbe :
         m = parse_map_table(xbe, selection=args.modelindex)
-        #for mod in m: print(f'{hex(mod[0])} {hex(mod[1])} {mod[2]}')
-
+        for mod in m: print(f'{hex(mod[0])} {hex(mod[1])} {mod[2]}')
+        print('--------------------------------------------------')
         #m = models
         #m = parse_prop_table(xbe)
         run(m, xbe, in_directory, out_directory)
@@ -83,7 +83,7 @@ def parse_map_table(xbe, toffset=(0xe7f0 + 0x001C1000), selection=None) :
 
 def run(models, xbe, in_directory, out_directory) :
     i = 0
-    for model in models :
+    for model in models : 
         geo_offset = model[0]
         texlist_offset = model[1]
         section = model[2]
@@ -98,10 +98,13 @@ def run(models, xbe, in_directory, out_directory) :
         with open(f'{out_directory}/{section}/{texlist.name}.mtl', 'w+') as m :
             texlist.write_mtl(m, in_directory +'/media')
 
+        # TODO: handle specific exceptions
+
         tree = Tree(xbe, geo_offset, section, texlist)
         tree.build_tree_rec(tree.root)
         tree.parse_chunks(verts=True, tris=True)
         tree.write(f'{out_directory}/{section}')
+
         
 #        chunklist = Chunklist(xbe, coffset, sect, texlist)
 #        chunklist.discover_local_chunks()

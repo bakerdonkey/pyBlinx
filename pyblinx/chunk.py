@@ -51,13 +51,14 @@ class Chunk(Node) :
         '''
         Parse vetices and triangles in chunk.
         '''
+        print(f'Parsing chunk at {self.entry}')
         v = self.parse_vertices(world=world)
         t = self.parse_triangles()
         return v, t
 
     def write(self, file, texlist=None, clist=False) :
         '''
-        Write .obj to open file handle. If texlist is not None, reference material library.
+        Write .obj to open file handle. If texlist exists, reference material library.
         '''
         f = verify_file_arg_o(file, usage='w+')
         if texlist is not None and clist is False :
@@ -79,7 +80,7 @@ class Chunk(Node) :
         count = unpack('h', f.read(2))[0]
         f.seek(8, 1)
 
-        print('Parsing {} vertices at {}... '.format(count, hex(self.voffset)), end='')
+        print(f'\tParsing {count} vertices at {hex(self.voffset)}... ', end='')
 
 
         v = []
@@ -94,7 +95,7 @@ class Chunk(Node) :
             v.append(tuple(word))
             f.seek(4, 1)
 
-        print('Done')
+        print('\tDone')
 
         self.vertices = v
         return v
@@ -105,8 +106,8 @@ class Chunk(Node) :
         '''
         f = self.xbe
         f.seek(self.toffset)
-
-        print(f'Parsing triangles at {hex(self.toffset)}... ')
+        #print(f'{hex(self.offset)}')
+        print(f'\tParsing triangles at {hex(self.toffset)}... ')
 
         # Hacky fix around unknown value at 0xbc58 in MDLEN. Probably others like it.
         if unpack('i', f.read(4))[0] > 50 :
@@ -121,16 +122,27 @@ class Chunk(Node) :
 
         i = 0
         while(True) :
-            print(f'\tParsing tripart {i}')
+            print(f'\tParsing triangle section {i}')
             i += 1
 
-            tripart = self.parse_tripart()
-            #print(f't[3] = {tripart[3]}')
-            if(tripart[0] is not None and tripart[1] is not None) :     #TODO: improve readability
-                t.append((tripart[0], tripart[1], tripart[3]))
-            if tripart[2] : break
-            
-        print('Done')
+            j = 0
+            while(True) :
+                print(f'\t\tParsing tripart {j}')
+                j += 1
+                
+                tripart = self.parse_tripart()
+                if(tripart[0] is not None and tripart[1] is not None) :     #TODO: improve readability
+                    t.append((tripart[0], tripart[1]))
+
+                if tripart[2] : 
+                    break
+
+                
+
+            if tripart[3] :
+                break
+
+        print('\tDone\n')
         self.triangles = t
         return t
         
@@ -143,22 +155,33 @@ class Chunk(Node) :
 
         t = []
         escape = False
+        final = True
         type_spec = unpack('h', f.read(2))[0]
 
         # Temporary simple tristrip handling
-        simple = False
+        # TODO: reuse code to imporve readability
         texlist_index=0
         if (type_spec - 0x0408) % 0x1000 != 0 :
-            print('\tNon-texture tripart detected. Aborting')
+            print('\t\t\tNon-texture tripart.')
             type='simple'
-            print(hex(type_spec - 0x0408))
-            simple=True
-            return(None, None, True, True)   
+
+            tripart_size = unpack('h', f.read(2))[0] * 2
+            f.seek(tripart_size, 1)
+            tripart_end = f.tell()
+            esc_candidate = f.read(4)
+            if esc_candidate == b'\xff\x00\x00\x00' :                # Escape symbol detected
+                print('\t\t\t\tsimple esc found')
+                return(None, None, True, True)   
+            else :
+                print('\t\t\t\tsimple esc not found')
+                f.seek(-4, 1)
+                return(None, None, False, True)
         else :
             texlist_index = unpack('h', f.read(2))[0] ^ 0x4000   
               
         f.seek(2, 1)
         
+
         # Check if last tripart 
         # TODO: Handle chunks with multiple triangle data regions
         # TODO: Process SIMPLE tristrips
@@ -166,9 +189,27 @@ class Chunk(Node) :
         f.seek(tripart_size, 1) 
         tripart_end = f.tell()
         esc_candidate = f.read(4)
-        if esc_candidate is b'\xff\x00\x00\x00' :  escape = True    # Escape symbol
-        if unpack('f', esc_candidate)[0] < 1.5 : escape = True      # The first four bytes of tpart headers is a float ~2.0. Hacky. Improve.
-        f.seek(-(tripart_size + 4), 1)
+
+        can_float = unpack('f', esc_candidate)[0]
+        can_ints = unpack('HH', esc_candidate)
+
+        if can_float < 1.5 : 
+            escape = True       # The first four bytes of tpart headers is a float ~2.0. This will break when encountering a simple tripart
+
+        if can_ints[0] == 0x241 :
+            print('\t\t\tTEXTURE MAGIC NUMBER')
+            escape = False
+
+        if esc_candidate == b'\xff\x00\x00\x00' :  
+            print('\t\t\tESCAPE SYMBOL FOUND')
+            escape = True     # Escape symbol
+
+        if (can_ints[0] >> 0x8 == 0x25 and can_ints[1] < 0x20) :
+            print('\t\t\tMORE TRIANGLES')
+            final = False 
+            escape = True
+
+        f.seek(-(tripart_size + 4), 1)                               # Return to beginning of tripart.
 
         t_length = unpack('h', f.read(2))[0]
         for i in range(t_length) :
@@ -190,17 +231,18 @@ class Chunk(Node) :
 
             t.append(strip)
 
-        f.seek(tripart_end) # why?
-        return (t, texlist_index, escape, simple,)
+        f.seek(tripart_end) 
+        return (t, texlist_index, escape, final,)
 
     def write_vertices(self, file) :
         f = verify_file_arg_o(file)
 
         verts = self.vertices
-        print(f'Writing {len(verts)} vertices to {f.name}')
         if not verts :
             print('\tNo vertices found!')
             return None
+        else :
+            print(f'Writing {len(verts)} vertices to {f.name}')
         
         for v in verts :
             ln = f'v {v[0]} {v[1]} {v[2]}\n'
@@ -225,26 +267,26 @@ class Chunk(Node) :
                 ln = f'usemtl {matlist[tp[1]]}\n'
                 f.write(ln)
 
-            if tp[2] is False :
-                for ts in tp[0] :
-                    for c in range(len(ts) - 2) :
-                        if c % 2 == 0 : 
-                            ln = f'f {ts[c][0]}/{vt} {ts[c+1][0]}/{vt+1} {ts[c+2][0]}/{vt+2}\n'
-                        else :  
-                            ln = f'f {ts[c+1][0]}/{vt+1} {ts[c][0]}/{vt} {ts[c+2][0]}/{vt+2}\n'
+#            if tp[2] is False :
+            for ts in tp[0] :
+                for c in range(len(ts) - 2) :
+                    if c % 2 == 0 : 
+                        ln = f'f {ts[c][0]}/{vt} {ts[c+1][0]}/{vt+1} {ts[c+2][0]}/{vt+2}\n'
+                    else :  
+                        ln = f'f {ts[c+1][0]}/{vt+1} {ts[c][0]}/{vt} {ts[c+2][0]}/{vt+2}\n'
 
-                        vt += 1
-                        f.write(ln)
-                    vt += 2
-            else :
-                for ts in tp[0] :
-                    for c in range(len(ts) - 2) :
-                        if c % 2 == 0 : 
-                            ln = f'f {ts[c][0]} {ts[c+1][0]} {ts[c+2][0]}\n'
-                        else :  
-                            ln = f'f {ts[c+1][0]} {ts[c][0]} {ts[c+2][0]}\n'
-
-                        f.write(ln)
+                    vt += 1
+                    f.write(ln)
+                vt += 2
+#            else :
+#                for ts in tp[0] :
+#                    for c in range(len(ts) - 2) :
+#                        if c % 2 == 0 : 
+#                            ln = f'f {ts[c][0]} {ts[c+1][0]} {ts[c+2][0]}\n'
+#                        else :  
+#                            ln = f'f {ts[c+1][0]} {ts[c][0]} {ts[c+2][0]}\n'
+#
+#                        f.write(ln)
 
     def write_texcoords(self, file) :
         '''
@@ -259,9 +301,9 @@ class Chunk(Node) :
         
         #TODO: Clean up
         for tp in triangles :
-            if tp[2] is False :
-                for ts in tp[0] :
-                    for c in ts :
-                        vt = list(c[1:])
-                        ln = f'vt {vt[0]} {vt[1]}\n'
-                        f.write(ln)
+            #if tp[2] is False :
+            for ts in tp[0] :
+                for c in ts :
+                    vt = list(c[1:])
+                    ln = f'vt {vt[0]} {vt[1]}\n'
+                    f.write(ln)

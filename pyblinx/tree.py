@@ -66,15 +66,27 @@ class Tree :
         if node is None : 
             node = self.root
 
-        if isinstance(node, Chunk) and node.entry is not 0x12 : # FIXME: strange chunk in chronoblob is 0x12. Not verified against others
-            if verts : node.parse_vertices(world=True)
-            if tris : node.parse_triangles()
+        # TODO: use custom exception and more robust handling
+        try :
+            if isinstance(node, Chunk) and node.entry is not 0x12 : # FIXME: strange chunk in chronoblob is 0x12. Not verified against others
+                if verts : 
+                    node.parse_vertices(world=True)
+
+                if tris : 
+                    node.parse_triangles()
+
+        except Exception as e :
+            print(f'An error has occured when parsing chunk at {hex(node.offset)}')
+            node.vertices = None
+            node.triangles = None
+
 
         if node.left is not None :
             self.parse_chunks(node.left_node, verts, tris)
 
         if node.right is not None :
             self.parse_chunks(node.right_node, verts, tris)
+
                 
 
     def write(self, outdir, node=None) :
@@ -103,6 +115,6 @@ class Tree :
         block_pointer = unpack('I', f.read(4))[0]
         if block_pointer != 0 :
             return True
-            
+
         else :
             return False
