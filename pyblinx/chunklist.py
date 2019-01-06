@@ -1,3 +1,5 @@
+# DEPRICATED
+
 from struct import unpack
 from node import Node
 from chunk import Chunk

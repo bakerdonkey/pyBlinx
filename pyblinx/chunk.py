@@ -1,9 +1,9 @@
-from node import Node
+from .node import Node
+from .texlist import Texlist
+from .address import section_addresses, rawaddress
+from .helpers import verify_file_arg_o, verify_file_arg_b
+from .world_transform import transform
 from struct import unpack
-from texlist import Texlist
-from address import section_addresses, rawaddress
-from helpers import verify_file_arg_o, verify_file_arg_b
-from world_transform import transform
 import operator
 
 TEXTURE_MAGIC = 0x0241
@@ -161,17 +161,14 @@ class Chunk(Node) :
         
         # First, observe the first two bytes as an int16. This will be used to determine the type of the tripart: simple, textured with declared index,
         # or textured without declared index. pyBlinx current does not support parsing simple triparts, and they will be skipped.
-        
         type_spec = unpack('h', f.read(2))[0]
         # TODO: make logical flow for this section more intuitive
         texlist_index=0
-
 
         # The case where the texture index is not declared, but the tripart is textured. It uses the texture index passed into the method.
         if type_spec == TEXTURE_MAGIC :
             print(f'\t\t\t\tUsing prev tindex {prev_tindex}')
             texlist_index = prev_tindex
-
 
         # The case where the tripart is simple. The next tripart is probed for the escape symbol, but no actual parsing happens.
         elif (type_spec - TEXTURE_TYPE_SPEC) % 0x1000 != 0 :

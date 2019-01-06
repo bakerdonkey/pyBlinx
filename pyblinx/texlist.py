@@ -1,8 +1,6 @@
 from struct import unpack
-from address import section_addresses
-from address import rawaddress
-from helpers import verify_file_arg_o
-from helpers import verify_file_arg_b
+from .address import section_addresses, rawaddress
+from .helpers import verify_file_arg_o, verify_file_arg_b
 
 class Texlist :
     section_table = section_addresses()
