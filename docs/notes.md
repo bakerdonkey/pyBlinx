@@ -93,3 +93,14 @@ Triparts containing simple tristrips may have a different header, since there is
 The tripart list stores the triparts. It has a variable length header (defined at `0x2`). Most symbols in the header are unknown. The header does not define the length of the tripart list (although some may?). Some chunks have multiple tripart lists. This is currently unresearched.
 
 All triangle data sections exit with the escape symbol `ff000000`.
+
+## Model Tables
+To load a full model, the program must be provided the offset of the __model tree__ root node and the offset of its associated __texture list__. In the .data section of the xbe, there are tables that define __models__, by associating these two offsets. 
+
+There are multiple types of model tables, the specifics of each are still  not researched. Most model tables have at least one other pointer to simple geometry chunks. Some model tables also have an array of floats. The usage of this data is unknown and ignored. Two types of model table have currently been identified; map tables and object tables.
+
+### The Map Table
+At virtual offset `0x...` (near the top of the .data section), there exists the __map table__. This table is how map models are defined. It is ordered MAP11, MAP12, MAP13, MDLB1 (boss 1), MAP21, MAP22, etc. MAP71 - MDLB7 do not exist, and instead reference MAP11, and the texts is null. Each entry also contains an unknown pointer to simple geometry chunks. This table does not build all geometry in each associated map's section -- some maps' skyboxes are missing. Also, special geometry (such as the statue in MAP11 and anything referenced in the MDLR sections) are not present.  Some of this only appears in .text and extracting would be outside the current scope of pyBlinx.
+
+### The Object Table
+At virtual offset `0x...`, these exists the __object table__. This table is how assets that are reused across stages are defined. Each entry is associated with an __object id__ int8. Each entry has many fields that are currently not researched, and each field is nullable -- even the geometry tree. This table mostly points to .data, but it also points to MDLEN for some reason. The geometry itself seems to be mostly interactive objects like trash, but also has some static objects like signposts. 
