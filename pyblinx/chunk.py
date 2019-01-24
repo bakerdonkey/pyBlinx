@@ -17,8 +17,8 @@ class Chunk(Node) :
         Node.__init__(self, xbe, entry_offset, section, texlist, parent_coords)
 
         block = self.parse_block()
-        self.voffset = rawaddress(block['voffset'], self.section, Chunk.section_table)
-        self.toffset = rawaddress(block['toffset'], self.section, Chunk.section_table)
+        self.voffset = rawaddress(block['voffset'], self.section, Chunk.section_table) if block['voffset'] is not None else None
+        self.toffset = rawaddress(block['toffset'], self.section, Chunk.section_table) if block['toffset'] is not None else None
 
         self.name = 'ch_' + self.section + '_' + hex(self.offset)
 
@@ -38,8 +38,12 @@ class Chunk(Node) :
         f = self.xbe
         offset = rawaddress(self.block, self.section, Chunk.section_table)
         f.seek(offset)
+        
         vdata_offset = unpack('i', f.read(4))[0]
+        if vdata_offset is 0 : vdata_offset = None
+        
         tdata_offset = unpack('i', f.read(4))[0]
+        if tdata_offset is 0 : tdata_offset = None
 
         float_array_0 = []
         for _ in range(6) : float_array_0.append(unpack('f', f.read(4))[0])
@@ -71,7 +75,9 @@ class Chunk(Node) :
         f.write('o {}\n'.format(self.name))
         self.write_vertices(f)
         self.write_texcoords(f)
-        self.write_triangles(f, texlist.matlist)
+
+        matlist = texlist.matlist if texlist is not None else None
+        self.write_triangles(f, matlist)
 
     
 
@@ -79,24 +85,33 @@ class Chunk(Node) :
         '''
         Reads vertex list from xbe. Returns a list[count], where each element is a tuple[3] denoting xyz.
         '''
+        if self.voffset is None :
+            print(f'\t{hex(self.offset)}: This chunk contains no vertices')
+            return None
+        
         f = self.xbe
         f.seek(self.voffset + 6)
         count = unpack('h', f.read(2))[0]
         f.seek(8, 1)
 
-        print(f'\tParsing {count} vertices at {hex(self.voffset)}... ', end='')
+        print(f'\t{hex(self.offset)}: Parsing {count} vertices at {hex(self.voffset)}... ', end='')
 
 
         v = []
         for _ in range(count) :
-            word = list(unpack('fff', f.read(12)))
+            vertex = list(unpack('fff', f.read(12)))
 
             if world is True :
-                w = tuple(map(operator.add, self.world_coords, self.parent_coords))
-                # print(str(self.world_coords[:3]) + ' + ' + str(self.parent_coords[:3]) + ' = ' + str(w[:3]))
-                word = transform(word, w)
+                v_local = transform(vertex, self.world_coords)
+                v_global = transform(v_local, self.parent_coords)
+                vertex = v_global
 
-            v.append(tuple(word))
+                #w = tuple(map(operator.add, self.world_coords, self.parent_coords))
+                # print(str(self.world_coords[:3]) + ' + ' + str(self.parent_coords[:3]) + ' = ' + str(w[:3]))
+                #vertex = transform(vertex, w)
+                
+
+            v.append(tuple(vertex))
             f.seek(4, 1)
 
         print('\tDone')
@@ -108,6 +123,10 @@ class Chunk(Node) :
         '''
         Read tripart list from xbe. Returns a list of tuples (tripart, texlist index) as defined in parse_tripart() without escape flags.
         '''
+        if self.toffset is None :
+            print(f'\t{hex(self.offset)}: This chunk contains no triangles')
+            return None
+
         f = self.xbe
         f.seek(self.toffset)
         print(f'\tParsing triangles at {hex(self.toffset)}... ')
@@ -128,6 +147,7 @@ class Chunk(Node) :
 
             j = 0
             prev_tindex = 0
+            final = True
             while(True) :
                 print(f'\t\tParsing tripart {j}')
                 j += 1
@@ -136,11 +156,14 @@ class Chunk(Node) :
                 if(tripart[0] is not None and tripart[1] is not None) :     #TODO: improve readability
                     t.append((tripart[0], tripart[1]))
                     prev_tindex = tripart[1]
+                
+                if tripart[3] :
+                    final = True
 
                 if tripart[2] : 
-                    break
+                    break                
 
-            if tripart[3] :                                                 #FIXME: handle case where tripart = None
+            if final :                                                 #FIXME: handle case where tripart = None
                 break
 
         print('\tDone\n')

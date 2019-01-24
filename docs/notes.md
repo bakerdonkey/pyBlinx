@@ -58,11 +58,11 @@ Subclass of __node__ that holds 3d model data. All chunks have a __header__ with
 
 
 ```
-		struct block {
+	struct block {
 0x0         vertex_list*    vlist;          // pointer to vertex data 
 0x4         tripart_list*   tlist;          // pointer to triangle data
 0x8         float32[6]      flist;          // unknown	
-		}
+	}
 ```
 
 
@@ -81,8 +81,8 @@ Tristrips are stored in a list called a tripart. A tripart has a 10-byte header,
 
 ```
         struct tripart {
-0x0         u_int16 short0;         // usage unknown
-0x2         u_int16 texlist_index;  // defines the texture used in this tripart
+0x0         u_int16 short0;         // defines type
+0x2         u_int16 texlist_index;  // defines the texture used in this tripart, if type is texture
 0x4         u_int16 short2;         // usage unknown
 0x6         u_int16 size;           // total size of tripart in shorts. Includes any padding.
 0x8         u_int16 count;          // number of tristrips in tripart
@@ -90,7 +90,7 @@ Tristrips are stored in a list called a tripart. A tripart has a 10-byte header,
 ```
 Triparts containing simple tristrips may have a different header, since there is no defined texture. However, the size and count are in the same location. This is currently unresearched.
 
-The tripart list stores the triparts. It has a variable length header (defined at `0x2`). Most symbols in the header are unknown. The header does not define the length of the tripart list (although some may?). Some chunks have multiple tripart lists. This is currently unresearched.
+The tripart list stores the triparts. It has a variable length header (the length defined at `0x2`). The usage of the symbols in the header are unknown, although the first two bytes probably define type. The header does not define the length of the tripart list (although some may?). Some chunks have multiple tripart lists.
 
 All triangle data sections exit with the escape symbol `ff000000`.
 
