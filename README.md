@@ -1,6 +1,8 @@
 # pyBlinx
 A tool for extracting 3d assets from BLiNX: The Time Sweeper. Information on patterns and format is available in `./docs`, which will be updated as research progresses. Requires Python 3.5+.
 
+This tool is still in early development, and this document may become outdated as the user interface is designed and implemented. Contact me directly if you need any help!
+
 ### Getting Started
 To extract an asset, you will need:
 - A legal, non-platinum hits, NTSC-U<sup>1</sup> copy of BLiNX: The Time Sweeper (MS-019 v1.05).
@@ -14,7 +16,7 @@ To extract an asset, you will need:
 
 #### Usage
 ```
-python pyblinx -co GEOMETRY_ADDRESS -so TEXTURE_ADDRESS -s SECTION
+python run.py -mi MODEL_INDEX
 ```
 Use `--help` for full definitions of arguments. Check `./docs` for information on how to find addresses and how to calculate virtual addresses
 
