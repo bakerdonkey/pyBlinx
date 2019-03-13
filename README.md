@@ -9,7 +9,7 @@ To extract an asset, you will need:
 - The object index <sup>2.</sup> of the model you wish to extract.
 
 <sup>1.</sup> Other versions have not been tested and are not explicitly supported.
-<sup>2.</sup> Currently only supports map models. Indices as follows: MAP11 -> 1, MAP12 -> 2, MAP13 -> 3 BOSS1 -> 4, MAP21 -> 3, etc.
+<sup>2.</sup> Currently only supports map models. Indices as follows: MAP11 -> 0, MAP12 -> 1, MAP13 -> 2 BOSS1 -> 3, MAP21 -> 4, etc.
 #### Usage
 ```
 python run.py -mi MODEL_INDEX
