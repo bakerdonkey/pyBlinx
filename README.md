@@ -1,19 +1,15 @@
 # pyBlinx
 A tool for extracting 3d assets from BLiNX: The Time Sweeper. Information on patterns and format is available in `./docs`, which will be updated as research progresses. Requires Python 3.5+.
 
-This tool is still in early development, and this document may become outdated as the user interface is designed and implemented. Contact me directly if you need any help!
+This tool is still in early development, and this document may become outdated as the interface is designed and implemented. Contact me directly if you need any help!
 
 ### Getting Started
 To extract an asset, you will need:
 - A legal, non-platinum hits, NTSC-U<sup>1</sup> copy of BLiNX: The Time Sweeper (MS-019 v1.05).
-- The virtual address of the asset's geometry
-- The virtual address of the asset's texture references
-- The name of the section<sup>2</sup> the asset is contained within
+- The object index <sup>2.</sup> of the model you wish to extract.
 
 <sup>1.</sup> Other versions have not been tested and are not explicitly supported.
-
-<sup>2.</sup> All assets are in sections of default.xbe. Use [XBE Explorer](https://sourceforge.net/projects/dxbx/files/XBE%20Explorer/) to find the section names, locations, and sizes.
-
+<sup>2.</sup> Currently only supports map models. Indices as follows: MAP11 -> 1, MAP12 -> 2, MAP13 -> 3 BOSS1 -> 4, MAP21 -> 3, etc.
 #### Usage
 ```
 python run.py -mi MODEL_INDEX
