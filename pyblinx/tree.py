@@ -1,9 +1,10 @@
-from struct import unpack
-from .node import Node
-from .chunk import Chunk
-from .helpers import verify_file_arg_b
-from .address import get_raw_address
 import operator
+
+from struct import unpack
+from pyblinx.node import Node
+from pyblinx.chunk import Chunk
+from pyblinx.helpers import verify_file_arg_b
+from pyblinx.address import get_raw_address
 
 
 class Tree:

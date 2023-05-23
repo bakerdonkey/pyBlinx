@@ -1,4 +1,4 @@
-# Blinx_rev: Reverse Engineering Notes
+# pyblinx: Reverse Engineering Notes
 
 ## Forward
 This is my first foray into reverse engineering. Information on data structures contained within the game’s files included in this document came from observing patterns in static binary data and drawing conclusions. I wrote it all in Python 3. Having never coded in Python in the past, it's been quite the learning experience. I used [XBEExplorer](http://dxbx-emu.com/information/xbeexplorer/) for virtual and raw addresses, [dexbe](http://www.theisozone.com/downloads/xbox/tools/dexbe-eur/) to extract section files, and [HxD](https://mh-nexus.de/en/hxd/) as a primary hex editor. I extend a warm thanks to everyone on the BLiNX Corps discord server for assisting research and helping along the way. My initial inspiration for this project was from following [JSRF Inside](http://jsrf-inside.blogspot.com/).

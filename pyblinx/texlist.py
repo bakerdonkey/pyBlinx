@@ -1,6 +1,6 @@
 from struct import unpack
-from .address import get_section_address_mapping, get_raw_address
-from .helpers import verify_file_arg_o, verify_file_arg_b
+from pyblinx.address import get_section_address_mapping, get_raw_address
+from pyblinx.helpers import verify_file_arg_o, verify_file_arg_b
 
 
 class Texlist:

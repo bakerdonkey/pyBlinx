@@ -1,7 +1,7 @@
-from .node import Node
-from .address import get_section_address_mapping, get_raw_address
-from .helpers import verify_file_arg_o
-from .world_transform import transform
+from pyblinx.node import Node
+from pyblinx.address import get_section_address_mapping, get_raw_address
+from pyblinx.helpers import verify_file_arg_o
+from pyblinx.world_transform import transform
 from struct import unpack
 
 TEXTURE_MAGIC = 0x0241
@@ -15,16 +15,16 @@ class Chunk(Node):
     def __init__(
         self, xbe, entry_offset, section, texlist=None, parent_coords=None, full=True
     ):
-        Node.__init__(self, xbe, entry_offset, section, texlist, parent_coords)
+        super().__init__(self, xbe, entry_offset, section, texlist, parent_coords)
 
         block = self.parse_block()
         self.voffset = (
-            get_raw_address(block["voffset"], self.section, Chunk.section_table)
+            get_raw_address(block["voffset"], self.section, self.section_table)
             if block["voffset"] is not None
             else None
         )
         self.toffset = (
-            get_raw_address(block["toffset"], self.section, Chunk.section_table)
+            get_raw_address(block["toffset"], self.section, self.section_table)
             if block["toffset"] is not None
             else None
         )
@@ -45,7 +45,7 @@ class Chunk(Node):
         Parse pointer block and return data.
         """
         f = self.xbe
-        offset = get_raw_address(self.block, self.section, Chunk.section_table)
+        offset = get_raw_address(self.block, self.section, self.section_table)
         f.seek(offset)
 
         vdata_offset = unpack("i", f.read(4))[0]
@@ -266,7 +266,7 @@ class Chunk(Node):
 
         # Parse the tripart.
         t_length = unpack("h", f.read(2))[0]
-        for i in range(t_length):
+        for _ in range(t_length):
             strip = []
             s_length = abs(unpack("h", f.read(2))[0])
 

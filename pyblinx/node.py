@@ -1,6 +1,6 @@
 from struct import unpack
-from .address import get_section_address_mapping, get_raw_address
-from .helpers import verify_file_arg_o, verify_file_arg_b
+from pyblinx.address import get_section_address_mapping, get_raw_address
+from pyblinx.helpers import verify_file_arg_b
 
 
 class Node:
@@ -9,7 +9,7 @@ class Node:
     def __init__(self, xbe, entry_offset, section, texlist=None, parent_coords=None):
         self.xbe = verify_file_arg_b(xbe)
         self.section = section
-        self.offset = get_raw_address(entry_offset, self.section, Node.section_table)
+        self.offset = get_raw_address(entry_offset, self.section, self.section_table)
         self.texlist = texlist
 
         header = self.parse_header()
@@ -21,21 +21,10 @@ class Node:
         self.left = header["left_ptr"]
         self.right = header["right_ptr"]
 
-        self.parent_coords = (
-            parent_coords
-            if parent_coords is not None
-            else (
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            )
-        )
+        # fmt: off
+        self.parent_coords = parent_coords or (0, 0, 0, 0, 0, 0, 0, 0, 0,)
+        # fmt: on
+
         self.left_node = None
         self.right_node = None
 
