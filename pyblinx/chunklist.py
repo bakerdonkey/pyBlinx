@@ -4,19 +4,19 @@ from struct import unpack
 from node import Node
 from chunk import Chunk
 from texlist import Texlist
-from address import section_addresses
-from address import rawaddress
-from address import virtaddress
+from address import get_section_address_mapping
+from address import get_raw_address
+from address import get_virtual_address
 from helpers import verify_file_arg_b
 from helpers import verify_file_arg_o
 
 class Chunklist :
-    section_table = section_addresses()
+    section_table = get_section_address_mapping()
 
     def __init__(self, xbe, entry_offset, section, texlist=None) :
         self.xbe = verify_file_arg_b(xbe)
         
-        self.offset = rawaddress(entry_offset, section, Chunklist.section_table)
+        self.offset = get_raw_address(entry_offset, section, Chunklist.section_table)
         
         self.texlist = texlist
 
@@ -57,11 +57,11 @@ class Chunklist :
 
     def discover_local_chunks(self) :
         print('Start parsing...')
-        next_entry = self.entry_type(rawaddress(self.header['left_ptr'], self.section, Chunklist.section_table)) 
+        next_entry = self.entry_type(get_raw_address(self.header['left_ptr'], self.section, Chunklist.section_table)) 
         if next_entry is None:
             print('Chunklist {}: next left pointer is None'.format(self.offset))
             return None
-        elif next_entry is 0xf:
+        elif next_entry == 0xf:
             print('Chunklist {}: left pointer to chunklist not yet supported'.format(self.offset))
             return None
         else : pass
@@ -122,5 +122,5 @@ class Chunklist :
         f = self.xbe
         f.seek(offset)
         i = unpack('i', f.read(4))[0]
-        entry = i if i is not 0 else None
+        entry = i if i != 0 else None
         return entry 

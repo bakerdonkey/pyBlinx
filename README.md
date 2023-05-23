@@ -5,11 +5,9 @@ This tool is still in early development, and this document may become outdated a
 
 ### Getting Started
 To extract an asset, you will need:
-- A legal, non-platinum hits, NTSC-U<sup>1</sup> copy of BLiNX: The Time Sweeper (MS-019 v1.05).
-- The object index <sup>2.</sup> of the model you wish to extract.
+- NTSC-U, "black box" (not Platinum Hits) copy of BLiNX: The Time Sweeper (MS-019 v1.05)
+- The object index of the model you wish to extract
 
-<sup>1.</sup> Other versions have not been tested and are not explicitly supported.
-<sup>2.</sup> Currently only supports map models. Indices as follows: MAP11 -> 0, MAP12 -> 1, MAP13 -> 2 BOSS1 -> 3, MAP21 -> 4, etc.
 #### Usage
 ```
 python run.py -mi MODEL_INDEX
@@ -23,6 +21,3 @@ Sample geometry and texture addresses are in `./data/entries.csv`. pyBlinx does 
 ![16 Ton](https://s15.postimg.cc/ot5s9pqwr/16ton_tex.png)
 ![arrow](https://s15.postimg.cc/ydugtg723/arrow_signs.png)
 ![map11](https://s15.postimg.cc/p628cks8b/untitled.png)
-
-### Disclaimer
-The intention of this project is experimental and educational. All research is conducted on legally obtained software and with publicly available information. 

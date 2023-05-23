@@ -1,80 +1,61 @@
 import csv
 
-#TODO: make a class to avoid redundant computation. Therefore, csv parsing only have to happen once.
-
-def section_addresses() :
+# TODO: make this a class or singleton or something? try to avoid opening and closing that file a million times.
+def get_section_address_mapping():
     addresses = {}
-    with open('data/sectionaddress.csv', 'r') as csv_file :
-        sectionreader = csv.reader(csv_file)
-        next(sectionreader)
-        for line in sectionreader :
-            addresses[line[0]] = (int(line[1], 16), int(line[2], 16))
+    with open("data/sectionaddress.csv", "r") as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader) # skip header
+        for line in reader:
+            base_virtual_address = int(line[1], 16)
+            base_raw_address = int(line[2], 16)
+            addresses[line[0]] = (base_virtual_address, base_raw_address)  # TODO; use a dict not a tuple!
+
     return addresses
 
-def rawaddress(virtaddress, section, addresses=None) :
-    '''
-    Converts a virtual address to a raw address using Blinx's defined section offsets.
-    '''
-    rawaddress = -1
-    if addresses is None :
-        with open('data/sectionaddress.csv', 'r') as csv_file :
-            section_index = __section_index(section)
-            assert(section_index is not None)
-            
-            sectionreader = csv.reader(csv_file)
-            line = next((x for i, x in enumerate(sectionreader) if i == section_index), None)
-            virtbase = int(line[1], 16)
-            rawbase = int(line[2], 16)
-    else :
-        #TODO: verify addresses is valid
-        virtbase = addresses.get(section)[0]
-        rawbase = addresses.get(section)[1]
 
-    offset = virtaddress - virtbase
-    rawaddress = rawbase + offset
+def get_raw_address(virtual_address, section, addresses=None):
+    """
+    Converts a virtual address to a raw address for a given section.
+    """
+    section_address_map = addresses or get_section_address_mapping()
+    base_addresses = section_address_map.get(section)
+    if not base_addresses:
+        raise RuntimeError(f'BaseAddresses not found for section {section}. Is section correct?')      
 
-    return rawaddress
+    base_virtual_address = base_addresses[0]
+    base_raw_address = base_addresses[1]
 
-def virtaddress(rawaddress, section, addresses) :
+    # TODO: use section size to validate this arithmetic and fail faster
+    return virtual_address - base_virtual_address + base_raw_address
 
-    virtaddress = -1
-    
-    virtbase = addresses.get(section)[0]
-    rawbase = addresses.get(section)[1]
 
-    offset = rawaddress - rawbase
-    virtaddress = rawbase + offset
+def get_virtual_address(raw_address, section, addresses=None):
+    """
+    Converts a raw address to a virtual address for a given section.
+    """
+    section_address_map = addresses or get_section_address_mapping()
+    base_addresses = section_address_map.get(section)
+    if not base_addresses:
+        raise RuntimeError(f'BaseAddresses not found for section {section}. Is section correct?')
 
-    return virtaddress
+    base_virtual_address = base_addresses[0]
+    base_raw_address = base_addresses[1]
 
-#TODO: Make more pythonic. Use a generator or something clever.
-def find_section(virtaddress, default='DATA') :
-    '''
-    Finds the section containg a virtual address.
-    '''
-    section = default
-    with open('data/sectionaddress.csv', 'r') as csv_file :
+    return raw_address - base_raw_address + base_virtual_address
+
+
+def find_section(virtual_address, section="DATA"):
+    """
+    Returns the section of a given virtual address.
+    """
+    with open("data/sectionaddress.csv", "r") as csv_file:
         reader = csv.reader(csv_file)
         next(reader)
-        for line in reader :
+        for line in reader:
             base = int(line[1], 16)
             size = int(line[3], 16)
-            if virtaddress > base and virtaddress < (base + size) :
+            if virtual_address > base and virtual_address < (base + size):
                 section = line[0]
-    
+
     return section
-
-
-def __section_index(section) :
-    candidate = section.upper()
-
-    switcher = {}
-    with open('data/sectionaddress.csv', 'r') as csv_file :
-        
-        reader = csv.reader(csv_file)
-        next(reader)            #skip header
-        for c, line in enumerate(reader, 1) :
-            switcher[line[0]] = c
-
-    return switcher.get(candidate)
-    
