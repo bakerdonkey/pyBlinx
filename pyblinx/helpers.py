@@ -1,24 +1,27 @@
-def verify_file_arg_b(fileobj):
-    """
-    Type-check file-like argument. If it's a string, assume it's a path and open file at that path (binary mode). Otherwise return
-    open file handle.
-    TODO: Handle invalid file paths.
-    """
-    if isinstance(fileobj, str):
-        with open(fileobj, "rb") as f:
-            return f
-    else:
-        return fileobj
+from tkinter import Tk, filedialog
 
 
-def verify_file_arg_o(fileobj, usage="a+"):
+def validate_file_handle(file, usage='rb'):
     """
     Type-check output file-like argument. If string, assume path and open file at that path (text append mode). Otherwise return
     open file handle.
-    TODO: Handle invalid file paths.
     """
-    if isinstance(fileobj, str):
-        with open(fileobj, usage) as f:
+    if isinstance(file, str):
+        # TODO: Handle invalid file paths.
+        with open(file, usage) as f:
             return f
+    
+    return file
+
+
+def tk_load_dir(dir_type):
+    Tk().withdraw()
+    if dir_type == "base":
+        titlestr = "Select game folder"
+    elif dir_type == "out":
+        titlestr = "Select output folder"
     else:
-        return fileobj
+        return None
+
+    in_path = filedialog.askdirectory(title=titlestr)
+    return in_path

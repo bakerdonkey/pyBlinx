@@ -3,10 +3,10 @@ import os
 from argparse import ArgumentParser
 from pathlib import Path
 from struct import unpack
-from tkinter import Tk, filedialog
 
 from pyblinx.address import find_section
 from pyblinx.constants import DATA_SECTION_RAW_ADDRESS, MAP_TABLE_OFFSET, PROP_TABLE_COUNT, PROP_TABLE_OFFSET
+from pyblinx.helpers import tk_load_dir
 from pyblinx.texlist import Texlist
 from pyblinx.tree import Tree
 
@@ -16,17 +16,17 @@ from pyblinx.tree import Tree
 #   - extract maps
 #   - extract props
 # It should have a low-level interface that's able to:
-#   - extract a chunk given a coffset and soffset
+#   - extract an individual chunk given a coffset and soffset
 
 
 def main():
     cli_args = get_cli_args()
 
     in_directory = (
-        os.path.abspath(cli_args.directory) if cli_args.directory else _tk_load_dir("base")
+        os.path.abspath(cli_args.directory) if cli_args.directory else tk_load_dir("base")
     )
     out_directory = (
-        os.path.abspath(cli_args.out) if cli_args.out else _tk_load_dir("out")
+        os.path.abspath(cli_args.out) if cli_args.out else tk_load_dir("out")
     )
 
     # sect = cli_args.section or "MDLB1"
@@ -52,7 +52,7 @@ def get_cli_args():
         "-co",
         "--coffset",
         help="Chunk entry offset (virtual address)",
-        type=lambda x: int(x, 16),
+        type=lambda x: int(x, 16),  # input is a hexidecimal
     )
     parser.add_argument(
         "-so",
@@ -146,39 +146,12 @@ def run(models, xbe, in_directory, out_directory):
         with open(f"{out_directory}/{section}/{texlist.name}.mtl", "w+") as m:
             texlist.write_mtl(m, in_directory + "/media")
 
-        # TODO: handle specific exceptions
-
         tree = Tree(xbe, geo_offset, section, texlist)
-        tree.build_tree_rec(tree.root)
+        tree.build_tree(tree.root)
         tree.parse_chunks(verts=True, tris=True)
         tree.write(f"{out_directory}/{section}")
-
-
-#        chunklist = Chunklist(xbe, coffset, sect, texlist)
-#        chunklist.discover_local_chunks()
-#        chunklist.parse_all_chunks()
-#        with open('{}/{}.obj'.format(out_directory, chunklist.name), 'w+') as f :
-#            chunklist.write(f, texlist=texlist, outdir=out_directory)
-
-#        chunk = Chunk(xbe, coffset, sect, full=False)
-#        chunk.parse_triangles()
-#        with open('{}/{}.obj'.format(out_directory, chunk.name), 'w+') as f :
-#            chunk.write_texcoords(f)
-
-
-# TODO: might be worth refactoring this or at least moving to a helper file.
-def _tk_load_dir(dir_type):
-    Tk().withdraw()
-    if dir_type == "base":
-        titlestr = "Select game folder"
-    elif dir_type == "out":
-        titlestr = "Select output folder"
-    else:
-        return None
-
-    in_path = filedialog.askdirectory(title=titlestr)
-    return in_path
 
 # eww
 if __name__ == "__main__":
     main()
+

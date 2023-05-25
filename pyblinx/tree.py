@@ -2,85 +2,77 @@ import operator
 
 from struct import unpack
 from pyblinx.node import Node
-from pyblinx.chunk import Chunk
-from pyblinx.helpers import verify_file_arg_b
-from pyblinx.address import get_raw_address
-
+from pyblinx.chunk import Chunk, is_chunk
+from pyblinx.helpers import validate_file_handle
 
 class Tree:
     def __init__(self, xbe, entry_offset, section, texlist=None):
-        self.xbe = verify_file_arg_b(xbe)
+        self.xbe = validate_file_handle(xbe)
         self.section = section
         self.texlist = texlist
 
-        f = self.xbe
-
-        root_is_chunk = self.root_block_exists(f, entry_offset, section)
-
-        if root_is_chunk:
-            self.root = Chunk(f, entry_offset, self.section, texlist)
+        if is_chunk(self.xbe, entry_offset, section):
+            self.root = Chunk(self.xbe, entry_offset, self.section, texlist)
         else:
-            self.root = Node(f, entry_offset, self.section, texlist)
+            self.root = Node(self.xbe, entry_offset, self.section, texlist)
 
-    def build_tree_rec(self, node=None, level=0, verbose=True):
+    def build_tree(self, node=None, level=0, verbose=True):
         """
         Build tree starting at self.root by discovering node stubs. Does not parse nodes.
         """
-        if node is None:
+        if not node:
             node = self.root
 
         if verbose:
-            type_name = "Chunk" if isinstance(node, Chunk) else "Node"
             pad = "\t" * level
-            print(f"{pad}{type_name} {hex(node.entry)} {hex(node.offset)}")
+            print(f"{pad}{type(node).__name__} {hex(node.entry)} {hex(node.offset)}")
 
         level += 1
-        # time.sleep(.5)
 
-        if node.left is not None:
-            nex = Node(self.xbe, node.left, self.section, self.texlist)
-            nex.parent_coords = tuple(
-                map(operator.add, node.parent_coords, node.world_coords)
-            )  # apply parent matrix
-
+        if node.left_pointer:
+            transformed_coords = tuple(map(operator.add, node.parent_coords, node.world_coords))  # apply parent matrix
+            candidate = Node(
+                    self.xbe,
+                    node.left_pointer,
+                    self.section,
+                    textlist=self.texlist,
+                    parent_coords=transformed_coords
+                )
+            
             # If block exists, node is a chunk. Otherwise node
-            if nex.block is not None:
+            node.left_node = candidate
+            if candidate.block:
                 node.left_node = Chunk(
                     self.xbe,
-                    node.left,
+                    node.left_pointer,
                     self.section,
-                    self.texlist,
-                    nex.parent_coords,
+                    texlist=self.texlist,
+                    parent_coords=transformed_coords,
                     full=False,
                 )
-            else:
-                node.left_node = nex
 
-            self.build_tree_rec(node.left_node, level)
+            self.build_tree(node.left_node, level)
 
-        if node.right is not None:
-            nex = Node(self.xbe, node.right, self.section, self.texlist)
-            nex.parent_coords = node.parent_coords
-            if nex.block is not None:
+        if node.right_pointer:
+            candidate = Node(self.xbe, node.right_pointer, self.section, texlist=self.texlist, parent_coords=node.parent_coords)
+            node.right_node = candidate
+            if candidate.block is not None:
                 node.right_node = Chunk(
                     self.xbe,
-                    node.right,
+                    node.right_pointer,
                     self.section,
                     self.texlist,
-                    nex.parent_coords,
+                    node.parent_coords,
                     full=False,
                 )
 
-            else:
-                node.right_node = nex
-
-            self.build_tree_rec(node.right_node, level - 1)
+            self.build_tree(node.right_node, level - 1)
 
     def parse_chunks(self, node=None, verts=True, tris=True):
         """
         Recurse through tree and parse all chunks. Nodes are not parsed.
         """
-        if node is None:
+        if not node:
             node = self.root
 
         # TODO: use custom exception and more robust handling
@@ -94,43 +86,31 @@ class Tree:
                 if tris:
                     node.parse_triangles()
 
-        except Exception as e:
+        except Exception:
             print(f"An error has occured when parsing chunk at {hex(node.offset)}")
             node.vertices = None
             node.triangles = None
 
-        if node.left is not None:
+        if node.left_pointer:
             self.parse_chunks(node.left_node, verts, tris)
 
-        if node.right is not None:
+        if node.right_pointer:
             self.parse_chunks(node.right_node, verts, tris)
 
     def write(self, outdir, node=None):
         """
         Write all full chunks in tree. Does not support character chunks
         """
-        if node is None:
+        if not node:
             node = self.root
 
         if isinstance(node, Chunk):
-            with open("{}/{}.obj".format(outdir, node.name), "w+") as fi:
-                node.write(fi, texlist=self.texlist, clist=False)
+            with open(f"{outdir}/{node.name}.obj", "w+") as obj_file:
+                node.write(obj_file, texlist=self.texlist, clist=False)
 
-        if node.left is not None:
+        if node.left_pointer:
             self.write(outdir, node.left_node)
 
-        if node.right is not None:
+        if node.right_pointer:
             self.write(outdir, node.right_node)
 
-    def root_block_exists(self, f, offset, section):
-        """
-        Probes a node at a defined offset and section and returns whether or not it has a block (thus is a chunk).
-        """
-        raw_offset = get_raw_address(offset, section)
-        f.seek(raw_offset + 4)
-        block_pointer = unpack("I", f.read(4))[0]
-        if block_pointer != 0:
-            return True
-
-        else:
-            return False

@@ -1,13 +1,13 @@
 from struct import unpack
 from pyblinx.address import get_section_address_mapping, get_raw_address
-from pyblinx.helpers import verify_file_arg_o, verify_file_arg_b
+from pyblinx.helpers import validate_file_handle
 
 
 class Texlist:
     section_address_mapping = get_section_address_mapping()
 
     def __init__(self, xbe, entry_offset, section):
-        self.xbe = verify_file_arg_b(xbe)
+        self.xbe = validate_file_handle(xbe)
 
         self.offset = get_raw_address(entry_offset, section, Texlist.section_address_mapping)
         self.section = section
@@ -63,7 +63,7 @@ class Texlist:
         """
         Create a .mat material library from the texlist with dummy Kd and Ks values.
         """
-        f = verify_file_arg_o(file)
+        f = validate_file_handle(file, usage='a+')
         pathlist = self.strlist_to_pathlist(mediapath)
         matlist = self.strlist_to_matlist()
 

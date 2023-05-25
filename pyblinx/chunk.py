@@ -1,15 +1,14 @@
 from pyblinx.node import Node
 from pyblinx.address import get_section_address_mapping, get_raw_address
-from pyblinx.helpers import verify_file_arg_o
+from pyblinx.helpers import validate_file_handle
 from pyblinx.world_transform import transform
 from struct import unpack
 
-TEXTURE_MAGIC = 0x0241
-TEXTURE_TYPE_SPEC = 0x0408
-ESCAPE = b"\xff\x00\x00\x00"
-
-
 class Chunk(Node):
+    TEXTURE_MAGIC = 0x0241
+    TEXTURE_TYPE_SPEC = 0x0408
+    ESCAPE = b"\xff\x00\x00\x00"
+
     section_table = get_section_address_mapping()
 
     def __init__(
@@ -20,12 +19,12 @@ class Chunk(Node):
         block = self.parse_block()
         self.voffset = (
             get_raw_address(block["voffset"], self.section, self.section_table)
-            if block["voffset"] is not None
+            if block["voffset"]
             else None
         )
         self.toffset = (
             get_raw_address(block["toffset"], self.section, self.section_table)
-            if block["toffset"] is not None
+            if block["toffset"]
             else None
         )
 
@@ -34,7 +33,7 @@ class Chunk(Node):
         self.vertices = None
         self.triangles = None
 
-        if full is True:
+        if full:
             self.vertices, self.triangles = self.parse(world=True)
 
     def __str__(self):
@@ -79,7 +78,7 @@ class Chunk(Node):
         """
         Write .obj to open file handle. If texlist exists, reference material library.
         """
-        f = verify_file_arg_o(file, usage="w+")
+        f = validate_file_handle(file, usage="w+")
         if texlist is not None and clist is False:
             f.write("mtllib {}.mtl\n".format(texlist.name))
 
@@ -297,7 +296,7 @@ class Chunk(Node):
         )
 
     def write_vertices(self, file):
-        f = verify_file_arg_o(file)
+        f = validate_file_handle(file, usage='a+')
 
         verts = self.vertices
         if not verts:
@@ -311,7 +310,7 @@ class Chunk(Node):
             f.write(ln)
 
     def write_triangles(self, file, matlist=None):
-        f = verify_file_arg_o(file)
+        f = validate_file_handle(file, usage='a+')
 
         triangles = self.triangles
         if not triangles:
@@ -355,7 +354,7 @@ class Chunk(Node):
         """
         Given an open file discriptor or path, write texture coordinates as indexes as they appear in the triangle array
         """
-        f = verify_file_arg_o(file)
+        f = validate_file_handle(file, usage='a+')
         triangles = self.triangles
 
         if not triangles:
@@ -370,3 +369,13 @@ class Chunk(Node):
                     vt = list(c[1:])
                     ln = f"vt {vt[0]} {vt[1]}\n"
                     f.write(ln)
+
+def is_chunk(xbe, offset, section):
+    """
+    Probe the header and determine whether a block section exists. If offset is not the entry_offset of a Node or Chunk, behavior is undefined.
+    """
+    raw_offset = get_raw_address(offset, section, addresses=Chunk.section_table)
+    xbe.seek( + 4)  # skip entry
+    block_pointer = unpack("I", xbe.read(4))[0]
+
+    return block_pointer != 0

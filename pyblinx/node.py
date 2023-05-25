@@ -1,13 +1,13 @@
 from struct import unpack
 from pyblinx.address import get_section_address_mapping, get_raw_address
-from pyblinx.helpers import verify_file_arg_b
+from pyblinx.helpers import validate_file_handle
 
 
 class Node:
     section_table = get_section_address_mapping()
 
     def __init__(self, xbe, entry_offset, section, texlist=None, parent_coords=None):
-        self.xbe = verify_file_arg_b(xbe)
+        self.xbe = validate_file_handle(xbe)
         self.section = section
         self.offset = get_raw_address(entry_offset, self.section, self.section_table)
         self.texlist = texlist
@@ -18,8 +18,8 @@ class Node:
         self.entry = header["entry"]
         self.block = header["block_ptr"]
         self.world_coords = header["world_coords"]
-        self.left = header["left_ptr"]
-        self.right = header["right_ptr"]
+        self.left_pointer = header["left_ptr"]
+        self.right_pointer = header["right_ptr"]
 
         # fmt: off
         self.parent_coords = parent_coords or (0, 0, 0, 0, 0, 0, 0, 0, 0,)
