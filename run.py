@@ -7,7 +7,7 @@ from struct import unpack
 from pyblinx.address import find_section
 from pyblinx.constants import DATA_SECTION_RAW_ADDRESS, MAP_TABLE_OFFSET, PROP_TABLE_COUNT, PROP_TABLE_OFFSET
 from pyblinx.helpers import tk_load_dir
-from pyblinx.texlist import Texlist
+from pyblinx.texlist import MaterialList
 from pyblinx.tree import Tree
 
 # TODO: this file is a mess, should be totally refactored. Maybe the whole app could be a class that holds context internally.
@@ -71,25 +71,25 @@ def parse_prop_table(xbe, toffset=(PROP_TABLE_OFFSET + DATA_SECTION_RAW_ADDRESS)
     WIP: read the prop table and extract the list of models.
     """
     xbe.seek(toffset)
-    # models = []
-    models = {}
-    # section = "DATA"
+    models = []
+    # models = {}
+    section = "DATA"
     for _ in range(count):
-        # m = list(unpack("II", f.read(8)))
-        # section = find_section(m[0])
-        # m.append(section)
-        # m = tuple(m)
-        # if m[0] != 0 and m[1] != 0 and m[2] != "MDLEN":
-        #     models.append(m)
-        # f.seek(72, 1)
-        # print(m)
+        m = list(unpack("II", xbe.read(8)))
+        section = find_section(m[0])
+        m.append(section)
+        m = tuple(m)
+        if m[0] != 0 and m[1] != 0 and m[2] != "MDLEN":
+            models.append(m)
+        xbe.seek(72, 1)
+        print(m)
 
-        prop_addresses = unpack("II", xbe.read(8))
-        geometry_offset = prop_addresses[0]
-        texlist_offset = prop_addresses[1]
-        section = find_section(geometry_offset)
-        if section != 'MDLEN' and geometry_offset not in [0, 1] and texlist_offset not in [0, 1]: # why not MDLEN??
-            models[section] = {'geometry_offset': geometry_offset, 'texlist_offset': texlist_offset}
+        # prop_addresses = unpack("II", xbe.read(8))
+        # geometry_offset = prop_addresses[0]
+        # texlist_offset = prop_addresses[1]
+        # section = find_section(geometry_offset)
+        # if section != 'MDLEN' and geometry_offset not in [0, 1] and texlist_offset not in [0, 1]: # why not MDLEN??
+        #     models[section] = {'geometry_offset': geometry_offset, 'texlist_offset': texlist_offset}
 
     return models
 
@@ -121,7 +121,7 @@ def parse_map_table(xbe, toffset=(MAP_TABLE_OFFSET + DATA_SECTION_RAW_ADDRESS), 
             texlist_offset = map_addresses[2]
             models[map] = {'geometry_offset': geometry_offset, 'texlist_offset': texlist_offset}
 
-    # TODO: can we lazy load? or at lease do this logic upstream?
+    # TODO: can we lazy load? or at least do this logic upstream?
     if section:
         models = {section: models[section]}
 
@@ -141,15 +141,15 @@ def run(models, xbe, in_directory, out_directory):
         # TODO: fully implement pathlib for paths
         Path(f"{out_directory}/{section}").mkdir(parents=True, exist_ok=True)
 
-        texlist = Texlist(xbe, texlist_offset, section)
-        texlist.parse_strlist()
+        texlist = MaterialList(xbe, texlist_offset, section)
+        texlist.parse_stringlist()
         with open(f"{out_directory}/{section}/{texlist.name}.mtl", "w+") as m:
-            texlist.write_mtl(m, in_directory + "/media")
+            texlist.write_material_library(m, in_directory + "/media")
 
-        tree = Tree(xbe, geo_offset, section, texlist)
-        tree.build_tree(tree.root)
-        tree.parse_chunks(verts=True, tris=True)
-        tree.write(f"{out_directory}/{section}")
+        # tree = Tree(xbe, geo_offset, section, texlist)
+        # tree.build_tree(tree.root)
+        # tree.parse_chunks(verts=True, tris=True)
+        # tree.write(f"{out_directory}/{section}")
 
 # eww
 if __name__ == "__main__":

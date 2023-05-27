@@ -14,7 +14,7 @@ class Chunk(Node):
     def __init__(
         self, xbe, entry_offset, section, texlist=None, parent_coords=None, full=True
     ):
-        super().__init__(self, xbe, entry_offset, section, texlist, parent_coords)
+        super(Chunk, self).__init__(xbe, entry_offset, section, texlist, parent_coords)
 
         block = self.parse_block()
         self.voffset = (
@@ -43,21 +43,20 @@ class Chunk(Node):
         """
         Parse pointer block and return data.
         """
-        f = self.xbe
         offset = get_raw_address(self.block, self.section, self.section_table)
-        f.seek(offset)
+        self.xbe.seek(offset)
 
-        vdata_offset = unpack("i", f.read(4))[0]
+        vdata_offset = unpack("i", self.xbe.read(4))[0]
         if vdata_offset == 0:
             vdata_offset = None
 
-        tdata_offset = unpack("i", f.read(4))[0]
+        tdata_offset = unpack("i", self.xbe.read(4))[0]
         if tdata_offset == 0:
             tdata_offset = None
 
         float_array_0 = []
         for _ in range(6):
-            float_array_0.append(unpack("f", f.read(4))[0])
+            float_array_0.append(unpack("f", self.xbe.read(4))[0])
 
         return {
             "voffset": vdata_offset,
@@ -375,7 +374,7 @@ def is_chunk(xbe, offset, section):
     Probe the header and determine whether a block section exists. If offset is not the entry_offset of a Node or Chunk, behavior is undefined.
     """
     raw_offset = get_raw_address(offset, section, addresses=Chunk.section_table)
-    xbe.seek( + 4)  # skip entry
+    xbe.seek(raw_offset + 4)  # skip entry
     block_pointer = unpack("I", xbe.read(4))[0]
 
     return block_pointer != 0
