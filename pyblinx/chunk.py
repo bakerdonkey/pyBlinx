@@ -1,20 +1,27 @@
+from pyblinx.constants import ESCAPE, TEXTURE_MAGIC, TEXTURE_TYPE_SPEC
 from pyblinx.node import Node
 from pyblinx.address import get_section_address_mapping, get_raw_address
 from pyblinx.helpers import validate_file_handle
+from pyblinx.material_list import MaterialList
 from pyblinx.world_transform import transform
 from struct import unpack
 
-class Chunk(Node):
-    TEXTURE_MAGIC = 0x0241
-    TEXTURE_TYPE_SPEC = 0x0408
-    ESCAPE = b"\xff\x00\x00\x00"
 
+class Chunk(Node):
     section_table = get_section_address_mapping()
 
     def __init__(
-        self, xbe, entry_offset, section, texlist=None, parent_coords=None, full=True
+        self,
+        xbe,
+        entry_offset,
+        section,
+        material_list=None,
+        parent_coords=None,
+        full=True,
     ):
-        super(Chunk, self).__init__(xbe, entry_offset, section, texlist, parent_coords)
+        super(Chunk, self).__init__(
+            xbe, entry_offset, section, material_list, parent_coords
+        )
 
         block = self.parse_block()
         self.voffset = (
@@ -73,19 +80,19 @@ class Chunk(Node):
         t = self.parse_triangles()
         return v, t
 
-    def write(self, file, texlist=None, clist=False):
+    def write(self, file, material_list: MaterialList = None):
         """
-        Write .obj to open file handle. If texlist exists, reference material library.
+        Write .obj to open file handle. If material_list exists, reference material library.
         """
         f = validate_file_handle(file, usage="w+")
-        if texlist is not None and clist is False:
-            f.write("mtllib {}.mtl\n".format(texlist.name))
+        if material_list:
+            f.write("mtllib {}.mtl\n".format(material_list.name))
 
         f.write("o {}\n".format(self.name))
         self.write_vertices(f)
         self.write_texcoords(f)
 
-        matlist = texlist.matlist if texlist is not None else None
+        matlist = material_list.material_names if material_list else None
         self.write_triangles(f, matlist)
 
     def parse_vertices(self, world=True):
@@ -129,7 +136,7 @@ class Chunk(Node):
 
     def parse_triangles(self):
         """
-        Read tripart list from xbe. Returns a list of tuples (tripart, texlist index) as defined in parse_tripart() without escape flags.
+        Read tripart list from xbe. Returns a list of tuples (tripart, material_list index) as defined in parse_tripart() without escape flags.
         """
         if self.toffset is None:
             print(f"\t{hex(self.offset)}: This chunk contains no triangles")
@@ -182,8 +189,8 @@ class Chunk(Node):
 
     def parse_tripart(self, type="texture", prev_tindex=0):
         """
-        Reads tripart. Returns tuple (tripart, texlist index, last, final) where tripart is a list of tuples (vertex index, tex_x, tex_y),
-        texlist index assigns the texture, last is the escape flag, and final flag is true if there does not exist another triangle section.
+        Reads tripart. Returns tuple (tripart, material_list index, last, final) where tripart is a list of tuples (vertex index, tex_x, tex_y),
+        material_list index assigns the texture, last is the escape flag, and final flag is true if there does not exist another triangle section.
         """
         f = self.xbe
 
@@ -195,12 +202,12 @@ class Chunk(Node):
         # or textured without declared index. pyBlinx current does not support parsing simple triparts, and they will be skipped.
         type_spec = unpack("h", f.read(2))[0]
         # TODO: make logical flow for this section more intuitive
-        texlist_index = 0
+        material_list_index = 0
 
         # The case where the texture index is not declared, but the tripart is textured. It uses the texture index passed into the method.
         if type_spec == TEXTURE_MAGIC:
             print(f"\t\t\t\tUsing prev tindex {prev_tindex}")
-            texlist_index = prev_tindex
+            material_list_index = prev_tindex
 
         # The case where the tripart is simple. The next tripart is probed for the escape symbol, but no actual parsing happens.
         elif (type_spec - TEXTURE_TYPE_SPEC) % 0x1000 != 0:
@@ -221,7 +228,7 @@ class Chunk(Node):
 
         # The case where the tripart's texture index is declared.
         else:
-            texlist_index = unpack("h", f.read(2))[0] ^ 0x4000
+            material_list_index = unpack("h", f.read(2))[0] ^ 0x4000
             f.seek(2, 1)
 
         # This next section navigates to the end of the tripart and probes four bytes. Using different interpretations of these bytes, it determines
@@ -289,13 +296,13 @@ class Chunk(Node):
         f.seek(tripart_end)  # Verify file pointer is at end of tripart.
         return (
             t,
-            texlist_index,
+            material_list_index,
             escape,
             final,
         )
 
     def write_vertices(self, file):
-        f = validate_file_handle(file, usage='a+')
+        f = validate_file_handle(file, usage="a+")
 
         verts = self.vertices
         if not verts:
@@ -309,7 +316,7 @@ class Chunk(Node):
             f.write(ln)
 
     def write_triangles(self, file, matlist=None):
-        f = validate_file_handle(file, usage='a+')
+        f = validate_file_handle(file, usage="a+")
 
         triangles = self.triangles
         if not triangles:
@@ -353,7 +360,7 @@ class Chunk(Node):
         """
         Given an open file discriptor or path, write texture coordinates as indexes as they appear in the triangle array
         """
-        f = validate_file_handle(file, usage='a+')
+        f = validate_file_handle(file, usage="a+")
         triangles = self.triangles
 
         if not triangles:
@@ -368,6 +375,7 @@ class Chunk(Node):
                     vt = list(c[1:])
                     ln = f"vt {vt[0]} {vt[1]}\n"
                     f.write(ln)
+
 
 def is_chunk(xbe, offset, section):
     """

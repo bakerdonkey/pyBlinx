@@ -6,11 +6,13 @@ from pyblinx.helpers import validate_file_handle
 class Node:
     section_table = get_section_address_mapping()
 
-    def __init__(self, xbe, entry_offset, section, texlist=None, parent_coords=None):
+    def __init__(
+        self, xbe, entry_offset, section, material_list=None, parent_coords=None
+    ):
         self.xbe = validate_file_handle(xbe)
         self.section = section
         self.offset = get_raw_address(entry_offset, self.section, self.section_table)
-        self.texlist = texlist
+        self.material_list = material_list
 
         header = self.parse_header()
 

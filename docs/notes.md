@@ -81,11 +81,11 @@ Tristrips are stored in a list called a tripart. A tripart has a 10-byte header,
 
 ```
         struct tripart {
-0x0         u_int16 short0;         // defines type
-0x2         u_int16 texlist_index;  // defines the texture used in this tripart, if type is texture
-0x4         u_int16 short2;         // usage unknown
-0x6         u_int16 size;           // total size of tripart in shorts. Includes any padding.
-0x8         u_int16 count;          // number of tristrips in tripart
+0x0         u_int16 short0;                     // defines type
+0x2         u_int16 material_list_index;        // index of material from material list to use for triparts of type "texture"
+0x4         u_int16 short2;                     // usage unknown
+0x6         u_int16 size;                       // total size of tripart in shorts. Includes any padding.
+0x8         u_int16 count;                      // number of tristrips in tripart
         }
 ```
 Triparts containing simple tristrips may have a different header, since there is no defined texture. However, the size and count are in the same location. This is currently unresearched.
