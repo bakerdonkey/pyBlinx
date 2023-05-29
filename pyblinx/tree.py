@@ -128,6 +128,10 @@ class Tree:
         if not node:
             node = self.root
 
+        # TODO: all as one file is broken since mesh indexes are ambigious.
+        # might take some serious work in triangle writing :(
+        seperate_objs = True
+
         if isinstance(node, Chunk):
             obj_name = f"{node.name}.obj" if seperate_objs else f"{self.name}.obj"
             obj_path = section_directory / obj_name
