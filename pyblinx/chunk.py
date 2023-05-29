@@ -39,6 +39,9 @@ class Chunk(Node):
         self._vertices = None
         self._triangles = None
 
+        # Sometimes chunks can't be parsed -- it happens. Do not write errored chunks. 
+        self.errored = False
+
         if parsed:
             self._vertices, self._triangles = self.parse_geometry(world=True)
 
@@ -96,6 +99,10 @@ class Chunk(Node):
         """
         Write .obj to open file handle. If material_list exists, reference material library.
         """
+        if self.errored:
+            print(f"Chunk {self.name} is errored. Cannot write .obj file for errored chunk.")
+            return
+
         if material_list:
             file.write(f"mtllib {material_list}.mtl\n")
 

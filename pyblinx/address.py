@@ -1,7 +1,8 @@
 import csv
-from pathlib import Path
-from pyblinx.constants import SECTION_ADDRESS_FILE_NAME
 
+from pathlib import Path
+
+from pyblinx.constants import SECTION_ADDRESS_FILE_NAME
 from pyblinx.exceptions import AddressError
 
 
@@ -15,7 +16,7 @@ def get_section_address_mapping():
             base_virtual_address = int(line[1], 16)
             base_raw_address = int(line[2], 16)
             section_size = int(line[3], 16)
-    
+
             # TODO: use a dict not a tuple!
             addresses[line[0]] = (
                 base_virtual_address,
@@ -44,12 +45,12 @@ def get_raw_address(virtual_address: int, section: str) -> int:
     section_size = base_addresses[2]
 
     offset = virtual_address - base_virtual_address
-    # if offset > section_size:
-    #     raise RawAddressException(
-    #         f'Virtual address {hex(virtual_address)} not in section {section}. offset: {hex(offset)} > section_size: {hex(section_size)}',
-    #         section=section,
-    #         virtual_address=virtual_address
-    #     )
+    if offset > section_size:
+        raise AddressError(
+            f"Virtual address {hex(virtual_address)} not in section {section}. offset: {hex(offset)} > section_size: {hex(section_size)}",
+            section=section,
+            virtual_address=virtual_address,
+        )
     return offset + base_raw_address
 
 

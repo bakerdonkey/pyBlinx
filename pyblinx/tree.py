@@ -105,10 +105,9 @@ class Tree:
                 if triangles_exist:
                     node.parse_triangles()
 
-            except Exception:
-                print(f"An error has occured when parsing chunk at {hex(node.offset)}")
-                node._vertices = None
-                node._triangles = None
+            except Exception as e:
+                print(f"An error has occured when parsing chunk at {hex(node.offset)}. Error: {str(e)}")
+                node.errored = True
 
         if node.left_child_offset:
             self.parse_chunks(node.left_child, verticies_exist, triangles_exist)
