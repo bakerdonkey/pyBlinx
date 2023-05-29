@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from struct import unpack
 
-from pyblinx.address import find_section
+from pyblinx.address import get_section_for_address
 from pyblinx.constants import (
     DATA_SECTION_RAW_ADDRESS,
     MAP_TABLE_OFFSET,
@@ -115,7 +115,7 @@ def parse_prop_table(
     section = "DATA"
     for _ in range(count):
         m = list(unpack("II", xbe.read(8)))
-        section = find_section(m[0])
+        section = get_section_for_address(m[0])
         m.append(section)
         m = tuple(m)
         if m[0] != 0 and m[1] != 0 and m[2] != "MDLEN":

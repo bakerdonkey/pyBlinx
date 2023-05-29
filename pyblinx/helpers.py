@@ -1,7 +1,8 @@
 from tkinter import Tk, filedialog
 
 
-def validate_file_handle(file, usage='rb'):
+# TODO: remove this. rely on duck-typing!!
+def validate_file_handle(file, usage="rb"):
     """
     Type-check output file-like argument. If string, assume path and open file at that path (text append mode). Otherwise return
     open file handle.
@@ -10,7 +11,7 @@ def validate_file_handle(file, usage='rb'):
         # TODO: Handle invalid file paths.
         with open(file, usage) as f:
             return f
-    
+
     return file
 
 

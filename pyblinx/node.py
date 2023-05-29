@@ -14,20 +14,19 @@ class Node:
 
         header = self.parse_header()
 
-        # TODO: rename left_node/right_node and left/right for readability
         # TODO: what the heck is "entry"??
         self.entry = header["entry"]
-        self.block = header["block_ptr"]
+        self.geometry_header = header["geometry_header"]
         self.world_coords = header["world_coords"]
-        self.left_pointer = header["left_ptr"]
-        self.right_pointer = header["right_ptr"]
+        self.left_child_offset = header["left"]
+        self.right_child_offset = header["right"]
 
         # fmt: off
         self.parent_coords = parent_coords or (0, 0, 0, 0, 0, 0, 0, 0, 0,)
         # fmt: on
 
-        self.left_node = None
-        self.right_node = None
+        self.left_child = None
+        self.right_child = None
 
     def parse_header(self):
         """
@@ -37,9 +36,9 @@ class Node:
         f.seek(self.offset)
         entry = unpack("i", f.read(4))[0]
 
-        block = unpack("i", f.read(4))[0]
-        if block == 0:
-            block = None
+        geometry_header = unpack("i", f.read(4))[0]
+        if geometry_header == 0:
+            geometry_header = None
 
         world = []
         for _ in range(9):
@@ -55,8 +54,8 @@ class Node:
 
         return {
             "entry": entry,
-            "block_ptr": block,
+            "geometry_header": geometry_header,
             "world_coords": world,
-            "left_ptr": left,
-            "right_ptr": right,
+            "left": left,
+            "right": right,
         }

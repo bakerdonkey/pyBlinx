@@ -1,4 +1,3 @@
-# import numpy
 from math import sin
 from math import cos
 

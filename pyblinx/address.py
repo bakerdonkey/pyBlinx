@@ -65,7 +65,8 @@ def get_virtual_address(raw_address: int, section: str, addresses: dict = None) 
     return raw_address - base_raw_address + base_virtual_address
 
 
-def find_section(virtual_address, section='DATA'):
+# TODO: why does this default to DATA?
+def get_section_for_address(virtual_address: int, section: str='DATA'):
     """
     Returns the section of a given virtual address.
     """

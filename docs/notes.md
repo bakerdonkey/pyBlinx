@@ -40,25 +40,25 @@ The individual nodes that populate a __Model Tree__. Every node contains a __hea
 
 ```
         struct header {
-0x0         u_int32         entry;          // chunk entry point
-0x4         void*           block;          // pointer to chunk block
-0x8         float32[9]      world;          // coordinates of chunk in current context
-0x44        node*           left;           // pointer to left child (inherits coordinates)
-0x48        node*           right;          // pointer to right child (same coordinate context)
+0x0         u_int32         entry;              // chunk entry point
+0x4         void*           geometry_header;    // pointer to chunk geometry header
+0x8         float32[9]      world;              // coordinates of chunk in current context
+0x44        node*           left;               // pointer to left child (inherits coordinates)
+0x48        node*           right;              // pointer to right child (same coordinate context)
         };
 ```
 
 ## Node types
 
-### Pure
-Superclass as defined above. The block pointer is blank, but still has an entry, coordinates, and may have children
+### Node
+Superclass as defined above. The geometry header pointer is blank, but still has an entry, coordinates, and may have children
 
-### Chunks
-Subclass of __node__ that holds 3d model data. All chunks have a __header__ with a valid pointer to a __block__, which has pointers to the __vertex data__ and __triangle data__. Non-standard chunks (such as character models) may not contain all regions of data, but do have the same offsets. Pointers to `NULL` are empty. 
+### Chunk
+Subclass of __node__ that holds 3d model data. All chunks have a __header__ with a valid pointer to a __geometry header__, which has pointers to the __vertex data__ and __triangle data__. Non-standard chunks (such as character models) may not contain all regions of data, but do have the same offsets. Pointers to `NULL` are empty. 
 
 
 ```
-	struct block {
+	struct geometry_header {
 0x0         vertex_list*    vlist;          // pointer to vertex data 
 0x4         tripart_list*   tlist;          // pointer to triangle data
 0x8         float32[6]      flist;          // unknown	

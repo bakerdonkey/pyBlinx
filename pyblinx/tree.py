@@ -1,6 +1,5 @@
 import operator
 
-from struct import unpack
 from pyblinx.node import Node
 from pyblinx.chunk import Chunk, is_chunk
 from pyblinx.helpers import validate_file_handle
@@ -30,52 +29,51 @@ class Tree:
 
         level += 1
 
-        if node.left_pointer:
+        if node.left_child_offset:
             transformed_coords = tuple(
                 map(operator.add, node.parent_coords, node.world_coords)
             )  # apply parent matrix
-            candidate = Node(
-                self.xbe,
-                node.left_pointer,
-                self.section,
-                material_list=self.material_list,
-                parent_coords=transformed_coords,
-            )
 
-            # If block exists, node is a chunk. Otherwise node
-            node.left_node = candidate
-            if candidate.block:
-                node.left_node = Chunk(
+            if is_chunk(self.xbe, node.left_child_offset, self.section):
+                node.left_child = Chunk(
                     self.xbe,
-                    node.left_pointer,
+                    node.left_child_offset,
                     self.section,
                     material_list=self.material_list,
                     parent_coords=transformed_coords,
                     full=False,
                 )
-
-            self.build_tree(node.left_node, level, verbose=verbose)
-
-        if node.right_pointer:
-            candidate = Node(
-                self.xbe,
-                node.right_pointer,
-                self.section,
-                material_list=self.material_list,
-                parent_coords=node.parent_coords,
-            )
-            node.right_node = candidate
-            if candidate.block is not None:
-                node.right_node = Chunk(
+            else:
+                node.left_child = Node(
                     self.xbe,
-                    node.right_pointer,
+                    node.left_child_offset,
+                    self.section,
+                    material_list=self.material_list,
+                    parent_coords=transformed_coords,
+                )
+
+            self.build_tree(node.left_child, level, verbose=verbose)
+
+        if node.right_child_offset:
+            if is_chunk(self.xbe, node.right_child_offset, self.section):
+                node.right_child = Chunk(
+                    self.xbe,
+                    node.right_child_offset,
                     self.section,
                     self.material_list,
                     node.parent_coords,
                     full=False,
                 )
+            else:
+                node.right_child = Node(
+                    self.xbe,
+                    node.right_child_offset,
+                    self.section,
+                    material_list=self.material_list,
+                    parent_coords=node.parent_coords,
+                )
 
-            self.build_tree(node.right_node, level - 1, verbose=verbose)
+            self.build_tree(node.right_child, level - 1, verbose=verbose)
 
     def parse_chunks(self, node=None, verts=True, tris=True):
         """
@@ -84,27 +82,26 @@ class Tree:
         if not node:
             node = self.root
 
-        # TODO: use custom exception and more robust handling
-        try:
-            if (
-                isinstance(node, Chunk) and node.entry != 0x12
-            ):  # FIXME: strange chunk in chronoblob is 0x12. Not verified against others
+        # strange chunk in chronoblob is 0x12. Not verified against others
+        if isinstance(node, Chunk) and node.entry != 0x12:
+            # TODO: let's figure out this error handling
+            try:
                 if verts:
                     node.parse_vertices(world=True)
 
                 if tris:
                     node.parse_triangles()
 
-        except Exception:
-            print(f"An error has occured when parsing chunk at {hex(node.offset)}")
-            node.vertices = None
-            node.triangles = None
+            except Exception:
+                print(f"An error has occured when parsing chunk at {hex(node.offset)}")
+                node._vertices = None
+                node._triangles = None
 
-        if node.left_pointer:
-            self.parse_chunks(node.left_node, verts, tris)
+        if node.left_child_offset:
+            self.parse_chunks(node.left_child, verts, tris)
 
-        if node.right_pointer:
-            self.parse_chunks(node.right_node, verts, tris)
+        if node.right_child_offset:
+            self.parse_chunks(node.right_child, verts, tris)
 
     def write(self, outdir, node=None):
         """
@@ -115,10 +112,10 @@ class Tree:
 
         if isinstance(node, Chunk):
             with open(f"{outdir}/{node.name}.obj", "w+") as obj_file:
-                node.write(obj_file, material_list=self.material_list)
+                node.write_obj(obj_file, material_list=self.material_list)
 
-        if node.left_pointer:
-            self.write(outdir, node.left_node)
+        if node.left_child_offset:
+            self.write(outdir, node.left_child)
 
-        if node.right_pointer:
-            self.write(outdir, node.right_node)
+        if node.right_child_offset:
+            self.write(outdir, node.right_child)
