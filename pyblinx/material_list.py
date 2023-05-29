@@ -20,6 +20,10 @@ class MaterialList:
         return self.name
 
     @property
+    def is_parsed(self):
+        return bool(self._texture_names)
+
+    @property
     def texture_names(self):
         if self._texture_names:
             return self._texture_names

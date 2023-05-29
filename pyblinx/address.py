@@ -1,9 +1,8 @@
 import csv
 
-from pyblinx.exceptions import RawAddressException
+from pyblinx.exceptions import AddressError
 
 
-# TODO: use a singleton or global variable, only run this code once!
 def get_section_address_mapping():
     addresses = {}
     with open('data/sectionaddress.csv', 'r') as csv_file:
@@ -22,16 +21,15 @@ def get_section_address_mapping():
     return addresses
 
 
-def get_raw_address(virtual_address: int, section: str, addresses: dict = None) -> int:
+def get_raw_address(virtual_address: int, section: str) -> int:
     """
     Converts a virtual address to a raw address for a given section.
     """
     # TODO: remove `addresses` param when global access to `section_address_mapping`` is available.
     # `addresses` is never expected to be anything different after all!
-    section_address_map = addresses or get_section_address_mapping()
     base_addresses = section_address_map.get(section)
     if not base_addresses:
-        raise RawAddressException(
+        raise AddressError(
             f'BaseAddresses not found for section {section}. Is section correct?',
             section=section,
         )
@@ -54,10 +52,9 @@ def get_virtual_address(raw_address: int, section: str, addresses: dict = None) 
     """
     Converts a raw address to a virtual address for a given section.
     """
-    section_address_map = addresses or get_section_address_mapping()
     base_addresses = section_address_map.get(section)
     if not base_addresses:
-        raise RawAddressException(
+        raise AddressError(
             f'BaseAddresses not found for section {section}. Is section correct?',
             section=section,
         )
@@ -82,3 +79,5 @@ def find_section(virtual_address, section='DATA'):
                 section = line[0]
 
     return section
+
+section_address_map = get_section_address_mapping()

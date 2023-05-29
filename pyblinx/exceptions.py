@@ -1,4 +1,4 @@
-class RawAddressException(ValueError):
+class AddressError(ValueError):
     def __init__(
         self,
         message: str,

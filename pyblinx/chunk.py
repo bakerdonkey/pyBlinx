@@ -1,6 +1,6 @@
 from pyblinx.constants import ESCAPE, TEXTURE_MAGIC, TEXTURE_TYPE_SPEC
 from pyblinx.node import Node
-from pyblinx.address import get_section_address_mapping, get_raw_address
+from pyblinx.address import get_raw_address
 from pyblinx.helpers import validate_file_handle
 from pyblinx.material_list import MaterialList
 from pyblinx.world_transform import transform
@@ -8,8 +8,6 @@ from struct import unpack
 
 
 class Chunk(Node):
-    section_table = get_section_address_mapping()
-
     def __init__(
         self,
         xbe,
@@ -25,12 +23,12 @@ class Chunk(Node):
 
         block = self.parse_block()
         self.voffset = (
-            get_raw_address(block["voffset"], self.section, self.section_table)
+            get_raw_address(block["voffset"], self.section)
             if block["voffset"]
             else None
         )
         self.toffset = (
-            get_raw_address(block["toffset"], self.section, self.section_table)
+            get_raw_address(block["toffset"], self.section)
             if block["toffset"]
             else None
         )
@@ -50,7 +48,7 @@ class Chunk(Node):
         """
         Parse pointer block and return data.
         """
-        offset = get_raw_address(self.block, self.section, self.section_table)
+        offset = get_raw_address(self.block, self.section)
         self.xbe.seek(offset)
 
         vdata_offset = unpack("i", self.xbe.read(4))[0]
@@ -381,7 +379,7 @@ def is_chunk(xbe, offset, section):
     """
     Probe the header and determine whether a block section exists. If offset is not the entry_offset of a Node or Chunk, behavior is undefined.
     """
-    raw_offset = get_raw_address(offset, section, addresses=Chunk.section_table)
+    raw_offset = get_raw_address(offset, section)
     xbe.seek(raw_offset + 4)  # skip entry
     block_pointer = unpack("I", xbe.read(4))[0]
 

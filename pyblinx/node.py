@@ -1,22 +1,21 @@
 from struct import unpack
-from pyblinx.address import get_section_address_mapping, get_raw_address
+from pyblinx.address import get_raw_address
 from pyblinx.helpers import validate_file_handle
 
 
 class Node:
-    section_table = get_section_address_mapping()
-
     def __init__(
         self, xbe, entry_offset, section, material_list=None, parent_coords=None
     ):
         self.xbe = validate_file_handle(xbe)
         self.section = section
-        self.offset = get_raw_address(entry_offset, self.section, self.section_table)
+        self.offset = get_raw_address(entry_offset, self.section)
         self.material_list = material_list
 
         header = self.parse_header()
 
         # TODO: rename left_node/right_node and left/right for readability
+        # TODO: what the heck is "entry"??
         self.entry = header["entry"]
         self.block = header["block_ptr"]
         self.world_coords = header["world_coords"]
