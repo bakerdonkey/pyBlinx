@@ -365,7 +365,7 @@ class Chunk(Node):
 
     def write_texture_coordinates(self, file):
         """
-        Given an open file discriptor or path, write texture coordinates as indicies as they appear in the triangle array
+        Given an open file handle or path, write texture coordinates as indicies as they appear in the triangle array
         """
         f = validate_file_handle(file, usage="a+")
 

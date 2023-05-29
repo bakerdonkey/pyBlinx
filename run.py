@@ -8,8 +8,10 @@ from pyblinx.address import get_section_for_address
 from pyblinx.constants import (
     DATA_SECTION_RAW_ADDRESS,
     MAP_TABLE_OFFSET,
+    MEDIA_DIRECTORY_NAME,
     PROP_TABLE_COUNT,
     PROP_TABLE_OFFSET,
+    XBE_FILE_NAME,
 )
 from pyblinx.helpers import tk_load_dir
 from pyblinx.material_list import MaterialList
@@ -28,20 +30,18 @@ def main():
     cli_args = get_cli_args()
 
     in_directory = (
-        os.path.abspath(cli_args.directory)
-        if cli_args.directory
-        else tk_load_dir("base")
+        Path(cli_args.directory) if cli_args.directory else tk_load_dir("base")
     )
-    out_directory = (
-        os.path.abspath(cli_args.out) if cli_args.out else tk_load_dir("out")
-    )
+    out_directory = Path(cli_args.out) if cli_args.out else tk_load_dir("out")
 
     # sect = cli_args.section or "MDLB1"
     # coffset = cli_args.coffset or 0xDE9464
     # soffset = cli_args.soffset or 0xD80280
     # models = [(coffset, soffset, sect)]
 
-    with open(in_directory + "/default.xbe", "rb") as xbe:
+    main_xbe = in_directory / XBE_FILE_NAME
+
+    with main_xbe.open("rb") as xbe:
         models = parse_map_table(xbe, section=cli_args.section)
         # models = parse_prop_table(xbe)
         for section, offsets in models.items():
@@ -63,18 +63,22 @@ def run(models, xbe, in_directory, out_directory, **kwargs):
         )
         i += 1
 
-        # TODO: use pathlib for paths everywhere!
-        Path(f"{out_directory}/{section}").mkdir(parents=True, exist_ok=True)
+        section_directory = Path(f"{out_directory}/{section}")
+        section_directory.mkdir(parents=True, exist_ok=True)
 
         material_list = MaterialList(xbe, material_list_offset, section)
         material_list.parse_texture_names()
-        with open(f"{out_directory}/{section}/{material_list.name}.mtl", "w+") as m:
-            material_list.write_material_library(m, in_directory + "/media")
+
+        mtl_path = section_directory / f"{material_list.name}.mtl"
+        with mtl_path.open("w+") as mtl:
+            material_list.write_material_library(
+                mtl, in_directory / MEDIA_DIRECTORY_NAME
+            )
 
         tree = Tree(xbe, geo_offset, section, material_list)
         tree.build_tree(tree.root, verbose=verbose)
         tree.parse_chunks(verts=True, tris=True)
-        tree.write(f"{out_directory}/{section}")
+        tree.write(section_directory)
 
 
 def get_cli_args():

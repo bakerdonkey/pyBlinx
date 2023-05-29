@@ -1,3 +1,4 @@
+from pathlib import Path
 from tkinter import Tk, filedialog
 
 
@@ -25,4 +26,7 @@ def tk_load_dir(dir_type):
         return None
 
     in_path = filedialog.askdirectory(title=titlestr)
-    return in_path
+    if not in_path:
+        print("You must select a folder or provide a path via CLI args")
+        exit(1)
+    return Path(in_path)

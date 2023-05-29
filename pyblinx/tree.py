@@ -1,4 +1,5 @@
 import operator
+from pathlib import Path
 
 from pyblinx.node import Node
 from pyblinx.chunk import Chunk, is_chunk
@@ -103,7 +104,7 @@ class Tree:
         if node.right_child_offset:
             self.parse_chunks(node.right_child, verts, tris)
 
-    def write(self, outdir, node=None):
+    def write(self, section_directory: Path, node=None):
         """
         Write all full chunks in tree. Does not support character chunks
         """
@@ -111,11 +112,12 @@ class Tree:
             node = self.root
 
         if isinstance(node, Chunk):
-            with open(f"{outdir}/{node.name}.obj", "w+") as obj_file:
+            obj_path = section_directory / f"{node.name}.obj"
+            with obj_path.open("w+") as obj_file:
                 node.write_obj(obj_file, material_list=self.material_list)
 
         if node.left_child_offset:
-            self.write(outdir, node.left_child)
+            self.write(section_directory, node.left_child)
 
         if node.right_child_offset:
-            self.write(outdir, node.right_child)
+            self.write(section_directory, node.right_child)

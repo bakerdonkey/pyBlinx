@@ -1,22 +1,27 @@
 import csv
+from pathlib import Path
+from pyblinx.constants import SECTION_ADDRESS_FILE_NAME
 
 from pyblinx.exceptions import AddressError
 
 
 def get_section_address_mapping():
     addresses = {}
-    with open('data/sectionaddress.csv', 'r') as csv_file:
+    section_address_file_path = Path(f"./data/{SECTION_ADDRESS_FILE_NAME}")
+    with section_address_file_path.open("r") as csv_file:
         reader = csv.reader(csv_file)
         next(reader)  # skip header
         for line in reader:
             base_virtual_address = int(line[1], 16)
             base_raw_address = int(line[2], 16)
             section_size = int(line[3], 16)
+    
+            # TODO: use a dict not a tuple!
             addresses[line[0]] = (
                 base_virtual_address,
                 base_raw_address,
                 section_size,
-            )  # TODO; use a dict not a tuple!
+            )
 
     return addresses
 
@@ -30,7 +35,7 @@ def get_raw_address(virtual_address: int, section: str) -> int:
     base_addresses = section_address_map.get(section)
     if not base_addresses:
         raise AddressError(
-            f'BaseAddresses not found for section {section}. Is section correct?',
+            f"BaseAddresses not found for section {section}. Is section correct?",
             section=section,
         )
 
@@ -55,7 +60,7 @@ def get_virtual_address(raw_address: int, section: str, addresses: dict = None) 
     base_addresses = section_address_map.get(section)
     if not base_addresses:
         raise AddressError(
-            f'BaseAddresses not found for section {section}. Is section correct?',
+            f"BaseAddresses not found for section {section}. Is section correct?",
             section=section,
         )
 
@@ -66,19 +71,21 @@ def get_virtual_address(raw_address: int, section: str, addresses: dict = None) 
 
 
 # TODO: why does this default to DATA?
-def get_section_for_address(virtual_address: int, section: str='DATA'):
+def get_section_for_address(virtual_address: int, section: str = "DATA"):
     """
     Returns the section of a given virtual address.
     """
-    with open('data/sectionaddress.csv', 'r') as csv_file:
+    section_address_file_path = Path(f"./data/{SECTION_ADDRESS_FILE_NAME}")
+    with section_address_file_path.open("r") as csv_file:
         reader = csv.reader(csv_file)
         next(reader)
         for line in reader:
             base = int(line[1], 16)
             size = int(line[3], 16)
             if virtual_address > base and virtual_address < (base + size):
-                section = line[0]
+                return line[0]
 
     return section
+
 
 section_address_map = get_section_address_mapping()
