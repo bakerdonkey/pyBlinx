@@ -24,6 +24,8 @@ class Tree:
         else:
             self.root = Node(self.xbe, entry_offset, self.section, self.material_list)
 
+        self.name = "tree_" + self.section + "_" + hex(entry_offset)
+
     def build_tree(self, node: Node = None, level: int = 0, verbose: bool = False):
         """
         Build tree starting at self.root by discovering node stubs. Does not parse nodes.
@@ -106,7 +108,9 @@ class Tree:
                     node.parse_triangles()
 
             except Exception as e:
-                print(f"An error has occured when parsing chunk at {hex(node.offset)}. Error: {str(e)}")
+                print(
+                    f"An error has occured when parsing chunk at {hex(node.offset)}. Error: {str(e)}"
+                )
                 node.errored = True
 
         if node.left_child_offset:
@@ -115,7 +119,9 @@ class Tree:
         if node.right_child_offset:
             self.parse_chunks(node.right_child, verticies_exist, triangles_exist)
 
-    def write(self, section_directory: Path, node: Node = None):
+    def write(
+        self, section_directory: Path, node: Node = None, seperate_objs: bool = False
+    ):
         """
         Write all full chunks in tree. Does not support character chunks
         """
@@ -123,9 +129,16 @@ class Tree:
             node = self.root
 
         if isinstance(node, Chunk):
-            obj_path = section_directory / f"{node.name}.obj"
-            with obj_path.open("w+") as obj_file:
-                node.write_obj(obj_file, material_list=self.material_list)
+            obj_name = f"{node.name}.obj" if seperate_objs else f"{self.name}.obj"
+            obj_path = section_directory / obj_name
+            file_exists = obj_path.exists()
+
+            with obj_path.open("a+") as obj_file:
+                node.write_obj(
+                    obj_file,
+                    material_list=self.material_list,
+                    ignore_mtllib_line=file_exists,  # only declare "mtllib" in .obj for new files
+                )
 
         if node.left_child_offset:
             self.write(section_directory, node.left_child)

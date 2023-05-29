@@ -39,7 +39,7 @@ class Chunk(Node):
         self._vertices = None
         self._triangles = None
 
-        # Sometimes chunks can't be parsed -- it happens. Do not write errored chunks. 
+        # Sometimes chunks can't be parsed -- it happens. Do not write errored chunks.
         self.errored = False
 
         if parsed:
@@ -95,21 +95,23 @@ class Chunk(Node):
         t = self.parse_triangles()
         return v, t
 
-    def write_obj(self, file: TextIO, material_list: MaterialList = None):
+    def write_obj(self, file: TextIO, material_list: MaterialList = None, **kwargs):
         """
         Write .obj to open file handle. If material_list exists, reference material library.
         """
         if self.errored:
-            print(f"Chunk {self.name} is errored. Cannot write .obj file for errored chunk.")
+            print(
+                f"Chunk {self.name} had a parsing error. Cannot write .obj for errored chunk."
+            )
             return
 
-        if material_list:
+        if material_list and not kwargs.get("ignore_mtllib_line"):
             file.write(f"mtllib {material_list}.mtl\n")
 
         file.write(f"o {self.name}\n")
-        self.write_vertices(file)
-        self.write_texture_coordinates(file)
-        self.write_triangles(file, material_list)
+        self._write_vertices(file)
+        self._write_texture_coordinates(file)
+        self._write_triangles(file, material_list)
 
     def parse_vertices(self, world: bool = True) -> list:
         """
@@ -331,7 +333,7 @@ class Chunk(Node):
             "is_final": final,
         }
 
-    def write_vertices(self, file: TextIO):
+    def _write_vertices(self, file: TextIO):
         if self.vertices:
             print(f"Writing {len(self._vertices)} vertices to {file.name}")
         else:
@@ -341,7 +343,7 @@ class Chunk(Node):
         for vertex in self._vertices:
             file.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
 
-    def write_triangles(self, file: TextIO, material_list: MaterialList = None):
+    def _write_triangles(self, file: TextIO, material_list: MaterialList = None):
         if self.triangles:
             print(f"Writing {len(self.triangles)} triparts to {file.name}")
         else:
@@ -373,7 +375,7 @@ class Chunk(Node):
                     file.write(ln)
                 vt += 2
 
-    def write_texture_coordinates(self, file: TextIO):
+    def _write_texture_coordinates(self, file: TextIO):
         """
         Given an open file handle or path, write texture coordinates as indicies as they appear in the triangle array
         """

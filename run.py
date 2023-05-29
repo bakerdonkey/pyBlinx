@@ -64,7 +64,14 @@ def run(models, xbe, in_directory, out_directory, **kwargs):
         i += 1
 
         section_directory = Path(f"{out_directory}/{section}")
-        section_directory.mkdir(parents=True, exist_ok=True)
+
+        # delete all data if directory exists.
+        if section_directory.exists():
+            for file in section_directory.iterdir():
+                file.unlink()
+            section_directory.rmdir()
+
+        section_directory.mkdir(parents=True)
 
         material_list = MaterialList(xbe, material_list_offset, section)
         material_list.parse_texture_names()
