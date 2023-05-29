@@ -1,13 +1,19 @@
 from struct import unpack
+from typing import BinaryIO
 from pyblinx.address import get_raw_address
-from pyblinx.helpers import validate_file_handle
+from pyblinx.material_list import MaterialList
 
 
 class Node:
     def __init__(
-        self, xbe, entry_offset, section, material_list=None, parent_coords=None
+        self,
+        xbe: BinaryIO,
+        entry_offset: int,
+        section: str,
+        material_list: MaterialList = None,
+        parent_coords: tuple = None,
     ):
-        self.xbe = validate_file_handle(xbe)
+        self.xbe = xbe
         self.section = section
         self.offset = get_raw_address(entry_offset, self.section)
         self.material_list = material_list

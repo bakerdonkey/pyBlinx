@@ -53,7 +53,7 @@ def get_raw_address(virtual_address: int, section: str) -> int:
     return offset + base_raw_address
 
 
-def get_virtual_address(raw_address: int, section: str, addresses: dict = None) -> int:
+def get_virtual_address(raw_address: int, section: str) -> int:
     """
     Converts a raw address to a virtual address for a given section.
     """
@@ -71,7 +71,7 @@ def get_virtual_address(raw_address: int, section: str, addresses: dict = None) 
 
 
 # TODO: why does this default to DATA?
-def get_section_for_address(virtual_address: int, section: str = "DATA"):
+def get_section_for_address(virtual_address: int, section: str = "DATA") -> str:
     """
     Returns the section of a given virtual address.
     """

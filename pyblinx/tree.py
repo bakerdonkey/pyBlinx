@@ -1,14 +1,21 @@
 import operator
 from pathlib import Path
+from typing import BinaryIO
+from pyblinx.material_list import MaterialList
 
 from pyblinx.node import Node
 from pyblinx.chunk import Chunk, is_chunk
-from pyblinx.helpers import validate_file_handle
 
 
 class Tree:
-    def __init__(self, xbe, entry_offset, section, material_list=None):
-        self.xbe = validate_file_handle(xbe)
+    def __init__(
+        self,
+        xbe: BinaryIO,
+        entry_offset: int,
+        section: str,
+        material_list: MaterialList = None,
+    ):
+        self.xbe = xbe
         self.section = section
         self.material_list = material_list
 
@@ -17,7 +24,7 @@ class Tree:
         else:
             self.root = Node(self.xbe, entry_offset, self.section, self.material_list)
 
-    def build_tree(self, node=None, level=0, verbose=False):
+    def build_tree(self, node: Node = None, level: int = 0, verbose: bool = False):
         """
         Build tree starting at self.root by discovering node stubs. Does not parse nodes.
         """
@@ -42,7 +49,7 @@ class Tree:
                     self.section,
                     material_list=self.material_list,
                     parent_coords=transformed_coords,
-                    full=False,
+                    parsed=False,
                 )
             else:
                 node.left_child = Node(
@@ -63,7 +70,7 @@ class Tree:
                     self.section,
                     self.material_list,
                     node.parent_coords,
-                    full=False,
+                    parsed=False,
                 )
             else:
                 node.right_child = Node(
@@ -76,7 +83,12 @@ class Tree:
 
             self.build_tree(node.right_child, level - 1, verbose=verbose)
 
-    def parse_chunks(self, node=None, verts=True, tris=True):
+    def parse_chunks(
+        self,
+        node: Node = None,
+        verticies_exist: bool = True,
+        triangles_exist: bool = True,
+    ):
         """
         Recurse through tree and parse all chunks. Nodes are not parsed.
         """
@@ -87,10 +99,10 @@ class Tree:
         if isinstance(node, Chunk) and node.entry != 0x12:
             # TODO: let's figure out this error handling
             try:
-                if verts:
+                if verticies_exist:
                     node.parse_vertices(world=True)
 
-                if tris:
+                if triangles_exist:
                     node.parse_triangles()
 
             except Exception:
@@ -99,12 +111,12 @@ class Tree:
                 node._triangles = None
 
         if node.left_child_offset:
-            self.parse_chunks(node.left_child, verts, tris)
+            self.parse_chunks(node.left_child, verticies_exist, triangles_exist)
 
         if node.right_child_offset:
-            self.parse_chunks(node.right_child, verts, tris)
+            self.parse_chunks(node.right_child, verticies_exist, triangles_exist)
 
-    def write(self, section_directory: Path, node=None):
+    def write(self, section_directory: Path, node: Node = None):
         """
         Write all full chunks in tree. Does not support character chunks
         """

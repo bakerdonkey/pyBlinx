@@ -1,14 +1,14 @@
 from pathlib import Path
 from struct import unpack
+from typing import BinaryIO, TextIO
 from pyblinx.address import get_raw_address
-from pyblinx.helpers import validate_file_handle
 
 TEXTURE_NAME_LIST_ITEM_SIZE = 32
 
 
 class MaterialList:
-    def __init__(self, xbe, entry_offset, section):
-        self.xbe = validate_file_handle(xbe)
+    def __init__(self, xbe: BinaryIO, entry_offset: int, section: str):
+        self.xbe = xbe
         self.offset = get_raw_address(entry_offset, section)
         self.section = section
 
@@ -36,7 +36,7 @@ class MaterialList:
             return self._material_names
         return self._get_material_names()
 
-    def parse_texture_names(self):
+    def parse_texture_names(self) -> list:
         """
         Parse texture names for a MaterialList.
         """
@@ -65,20 +65,19 @@ class MaterialList:
         return texture_names
 
     # TODO: parse and write game-defined materials
-    def write_material_library(self, out_file, media_path: Path):
+    def write_material_library(self, file: TextIO, media_path: Path):
         """
         Create a .mat material library with dummy Kd and Ks values.
         """
-        f = validate_file_handle(out_file, usage="a+")
         paths = [media_path / f"{string}.dds" for string in self.texture_names]
         materials = zip(self.material_names, paths)
 
         for material in materials:
             absolute_path = str(material[1].resolve())
-            f.write(f"newmtl {material[0]}\n")
-            f.write("Kd 0.8 0.8 0.8\n")
-            f.write("Ks 0.0 0.0 0.0\n")
-            f.write(f"map_Kd {absolute_path}\n\n")
+            file.write(f"newmtl {material[0]}\n")
+            file.write("Kd 0.8 0.8 0.8\n")
+            file.write("Ks 0.0 0.0 0.0\n")
+            file.write(f"map_Kd {absolute_path}\n\n")
 
     def _parse_texture_names_header(self):
         """

@@ -1,9 +1,9 @@
 from struct import unpack
+from typing import BinaryIO, TextIO
 
 from pyblinx.constants import ESCAPE, TEXTURE_MAGIC, TEXTURE_TYPE_SPEC
 from pyblinx.node import Node
 from pyblinx.address import get_raw_address
-from pyblinx.helpers import validate_file_handle
 from pyblinx.material_list import MaterialList
 from pyblinx.world_transform import transform
 
@@ -11,12 +11,12 @@ from pyblinx.world_transform import transform
 class Chunk(Node):
     def __init__(
         self,
-        xbe,
-        entry_offset,
-        section,
-        material_list=None,
-        parent_coords=None,
-        full=True,
+        xbe: BinaryIO,
+        entry_offset: int,
+        section: str,
+        material_list: MaterialList = None,
+        parent_coords: tuple = None,
+        parsed: bool = True,
     ):
         super(Chunk, self).__init__(
             xbe, entry_offset, section, material_list, parent_coords
@@ -39,25 +39,25 @@ class Chunk(Node):
         self._vertices = None
         self._triangles = None
 
-        if full:
+        if parsed:
             self._vertices, self._triangles = self.parse_geometry(world=True)
 
     def __str__(self):
         return self.name
 
     @property
-    def vertices(self):
+    def vertices(self) -> list:
         if not self._vertices:
             return self.parse_vertices()
         return self._vertices
 
     @property
-    def triangles(self):
+    def triangles(self) -> list:
         if not self._triangles:
             return self.parse_triangles()
         return self._triangles
 
-    def parse_geometry_header(self):
+    def parse_geometry_header(self) -> dict:
         """
         Parse geometry header and return pointers to vertices and triangles.
         """
@@ -83,7 +83,7 @@ class Chunk(Node):
         }
 
     # TODO: this method could be useful to DRY up some caller code. it should oopulate the instance variables too.
-    def parse_geometry(self, world=True):
+    def parse_geometry(self, world: bool = True):
         """
         Parse vetices and triangles in chunk.
         """
@@ -92,20 +92,19 @@ class Chunk(Node):
         t = self.parse_triangles()
         return v, t
 
-    def write_obj(self, file, material_list: MaterialList = None):
+    def write_obj(self, file: TextIO, material_list: MaterialList = None):
         """
         Write .obj to open file handle. If material_list exists, reference material library.
         """
-        f = validate_file_handle(file, usage="w+")
         if material_list:
-            f.write(f"mtllib {material_list}.mtl\n")
+            file.write(f"mtllib {material_list}.mtl\n")
 
-        f.write(f"o {self.name}\n")
-        self.write_vertices(f)
-        self.write_texture_coordinates(f)
-        self.write_triangles(f, material_list.material_names if material_list else None)
+        file.write(f"o {self.name}\n")
+        self.write_vertices(file)
+        self.write_texture_coordinates(file)
+        self.write_triangles(file, material_list)
 
-    def parse_vertices(self, world=True):
+    def parse_vertices(self, world: bool = True) -> list:
         """
         Reads vertex list from xbe. Returns a list[count], where each element is a tuple[3] denoting xyz.
         """
@@ -141,7 +140,7 @@ class Chunk(Node):
         return vertices
 
     # TODO: refactor me!! this function is a mess. maybe make actual objects for triparts, tristrips, etc.
-    def parse_triangles(self):
+    def parse_triangles(self) -> list:
         """
         Read tripart list from xbe. Returns a list of tuples (tripart, material_list index) as defined in parse_tripart() without escape flags.
         """
@@ -197,7 +196,10 @@ class Chunk(Node):
         self._triangles = triparts
         return triparts
 
-    def parse_tripart(self, type="texture", previous_material_list_index=0):
+    # TODO: make "type" an enum
+    def parse_tripart(
+        self, type: str = "texture", previous_material_list_index: int = 0
+    ) -> dict:
         """
         Reads tripart. Returns tuple (tripart, material_list index, last, final) where tripart is a list of tuples (vertex index, tex_x, tex_y),
         material_list index assigns the texture, last is the escape flag, and final flag is true if there does not exist another triangle section.
@@ -322,53 +324,52 @@ class Chunk(Node):
             "is_final": final,
         }
 
-    def write_vertices(self, file):
-        f = validate_file_handle(file, usage="a+")
-
+    def write_vertices(self, file: TextIO):
         if self.vertices:
-            print(f"Writing {len(self._vertices)} vertices to {f.name}")
+            print(f"Writing {len(self._vertices)} vertices to {file.name}")
         else:
             print("\tNo vertices to write!")
             return
 
         for vertex in self._vertices:
-            f.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
+            file.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
 
-    def write_triangles(self, file, matlist=None):
-        f = validate_file_handle(file, usage="a+")
-
+    def write_triangles(self, file: TextIO, material_list: MaterialList = None):
         if self.triangles:
-            print(f"Writing {len(self.triangles)} triparts to {f.name}")
+            print(f"Writing {len(self.triangles)} triparts to {file.name}")
         else:
             print("\tNo triangles to write!")
-            return None
+            return
 
         # TODO: write non-texture materials
         # TODO: implement material writing
         # TODO: remove redundant code
         vt = 1
-        for tp in self.triangles:
-            if matlist:
-                ln = f"usemtl {matlist[tp[1]]}\n"
-                f.write(ln)
+        for tripart in self.triangles:
+            if material_list:
+                try:
+                    material_name = material_list.material_names[tripart[1]]
+                    file.write(f"usemtl {material_name}\n")
+                except IndexError:
+                    print(
+                        f"Material list index {tripart[1]} out of range for material list {material_list.name} of size {len(material_list.material_names)}"
+                    )
 
-            for ts in tp[0]:
-                for c in range(len(ts) - 2):
+            for tristrip in tripart[0]:
+                for c in range(len(tristrip) - 2):
                     if c % 2 == 0:
-                        ln = f"f {ts[c][0]}/{vt} {ts[c+1][0]}/{vt+1} {ts[c+2][0]}/{vt+2}\n"
+                        ln = f"f {tristrip[c][0]}/{vt} {tristrip[c+1][0]}/{vt+1} {tristrip[c+2][0]}/{vt+2}\n"
                     else:
-                        ln = f"f {ts[c+1][0]}/{vt+1} {ts[c][0]}/{vt} {ts[c+2][0]}/{vt+2}\n"
+                        ln = f"f {tristrip[c+1][0]}/{vt+1} {tristrip[c][0]}/{vt} {tristrip[c+2][0]}/{vt+2}\n"
 
                     vt += 1
-                    f.write(ln)
+                    file.write(ln)
                 vt += 2
 
-    def write_texture_coordinates(self, file):
+    def write_texture_coordinates(self, file: TextIO):
         """
         Given an open file handle or path, write texture coordinates as indicies as they appear in the triangle array
         """
-        f = validate_file_handle(file, usage="a+")
-
         if not self._triangles:
             print("\tNo texture coordinates found!")
             return None
@@ -380,10 +381,10 @@ class Chunk(Node):
                 for c in ts:
                     vt = list(c[1:])
                     ln = f"vt {vt[0]} {vt[1]}\n"
-                    f.write(ln)
+                    file.write(ln)
 
 
-def is_chunk(xbe, offset, section):
+def is_chunk(xbe, offset: int, section: str) -> bool:
     """
     Probe the header and determine if a node is a chunk. Undefined behavior if offset
     is not a node entry offset.

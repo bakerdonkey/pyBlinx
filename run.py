@@ -77,7 +77,7 @@ def run(models, xbe, in_directory, out_directory, **kwargs):
 
         tree = Tree(xbe, geo_offset, section, material_list)
         tree.build_tree(tree.root, verbose=verbose)
-        tree.parse_chunks(verts=True, tris=True)
+        tree.parse_chunks(verticies_exist=True, triangles_exist=True)
         tree.write(section_directory)
 
 
