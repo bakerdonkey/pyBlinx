@@ -1,10 +1,11 @@
+from struct import unpack
+
 from pyblinx.constants import ESCAPE, TEXTURE_MAGIC, TEXTURE_TYPE_SPEC
 from pyblinx.node import Node
 from pyblinx.address import get_raw_address
 from pyblinx.helpers import validate_file_handle
 from pyblinx.material_list import MaterialList
 from pyblinx.world_transform import transform
-from struct import unpack
 
 
 class Chunk(Node):
@@ -102,7 +103,6 @@ class Chunk(Node):
         f.write(f"o {self.name}\n")
         self.write_vertices(f)
         self.write_texture_coordinates(f)
-
         self.write_triangles(f, material_list.material_names if material_list else None)
 
     def parse_vertices(self, world=True):
@@ -352,7 +352,6 @@ class Chunk(Node):
                 ln = f"usemtl {matlist[tp[1]]}\n"
                 f.write(ln)
 
-            #            if tp[2] is False :
             for ts in tp[0]:
                 for c in range(len(ts) - 2):
                     if c % 2 == 0:
@@ -363,16 +362,6 @@ class Chunk(Node):
                     vt += 1
                     f.write(ln)
                 vt += 2
-
-    #            else :
-    #                for ts in tp[0] :
-    #                    for c in range(len(ts) - 2) :
-    #                        if c % 2 == 0 :
-    #                            ln = f'f {ts[c][0]} {ts[c+1][0]} {ts[c+2][0]}\n'
-    #                        else :
-    #                            ln = f'f {ts[c+1][0]} {ts[c][0]} {ts[c+2][0]}\n'
-    #
-    #                        f.write(ln)
 
     def write_texture_coordinates(self, file):
         """
