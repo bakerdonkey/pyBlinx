@@ -71,8 +71,7 @@ def get_virtual_address(raw_address: int, section: str) -> int:
     return raw_address - base_raw_address + base_virtual_address
 
 
-# TODO: why does this default to DATA?
-def get_section_for_address(virtual_address: int, section: str = "DATA") -> str:
+def get_section_for_address(virtual_address: int) -> str:
     """
     Returns the section of a given virtual address.
     """
@@ -86,7 +85,8 @@ def get_section_for_address(virtual_address: int, section: str = "DATA") -> str:
             if virtual_address > base and virtual_address < (base + size):
                 return line[0]
 
-    return section
+    # TODO: why default to DATA?
+    return 'DATA'
 
 
 section_address_map = get_section_address_mapping()

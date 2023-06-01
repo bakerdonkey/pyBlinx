@@ -96,7 +96,7 @@ class Chunk(Node):
         t = self.parse_triangles()
         return v, t
 
-    def write_obj(self, file: TextIO, material_list: MaterialList = None, **kwargs):
+    def write_obj(self, file: TextIO, **kwargs):
         """
         Write .obj to open file handle. If material_list exists, reference material library.
         """
@@ -106,14 +106,14 @@ class Chunk(Node):
             )
             return
 
-        if material_list and not kwargs.get("ignore_mtllib_line"):
-            file.write(f"mtllib {material_list}.mtl\n")
+        if self.material_list and not kwargs.get("ignore_mtllib_line"):
+            file.write(f"mtllib {self.material_list}.mtl\n")
 
         print(f'{self.name}: Writing chunk to {file.name}')
         file.write(f"o {self.name}\n")
         self._write_vertices(file)
         self._write_texture_coordinates(file)
-        self._write_triangles(file, material_list)
+        self._write_triangles(file)
 
     def parse_vertices(self, world: bool = True) -> list:
         """
@@ -358,7 +358,7 @@ class Chunk(Node):
         for vertex in self._vertices:
             file.write(vertex.obj())
 
-    def _write_triangles(self, file: TextIO, material_list: MaterialList = None):
+    def _write_triangles(self, file: TextIO):
         if self.triangles:
             print(f"\t{len(self.triangles)} triparts")
         else:
@@ -370,13 +370,13 @@ class Chunk(Node):
         # TODO: remove redundant code
         vt = 1
         for tripart in self.triangles:
-            if material_list:
+            if self.material_list:
                 try:
-                    material_name = material_list.material_names[tripart[1]]
+                    material_name = self.material_list.material_names[tripart[1]]
                     file.write(f"usemtl {material_name}\n")
                 except IndexError:
                     print(
-                        f"Material list index {tripart[1]} out of range for material list {material_list.name} of size {len(material_list.material_names)}"
+                        f"Material list index {tripart[1]} out of range for material list {self.material_list.name} of size {len(self.material_list.material_names)}"
                     )
 
             for tristrip in tripart[0]:

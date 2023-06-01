@@ -12,7 +12,7 @@ class MaterialList:
         self.offset = get_raw_address(entry_offset, section)
         self.section = section
 
-        self.name = "tl_" + self.section + "_" + hex(self.offset)
+        self.name = "matlibrary_" + self.section + "_" + hex(self.offset)
 
         self._texture_names = None
         self._material_names = None
