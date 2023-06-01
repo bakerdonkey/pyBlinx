@@ -89,7 +89,7 @@ class Chunk(Node):
     # TODO: this method could be useful to DRY up some caller code. it should maybe populate the instance variables too.
     def parse_geometry(self, world: bool = True):
         """
-        Parse vetices and triangles in chunk.
+        Parse vertices and triangles in chunk.
         """
         print(f"{self.name}: Parsing chunk with entry value {self.entry}")
         v = self.parse_vertices(world=world)
@@ -131,7 +131,7 @@ class Chunk(Node):
         self.xbe.seek(6, 1)  # skip 6 unknown bytes
 
         count = unpack("h", self.xbe.read(2))[0]
-        self.xbe.seek(8, 1)  # skip 8 more unkown bytes
+        self.xbe.seek(8, 1)  # skip 8 more unknown bytes
 
         print(
             f"\tParsing {count} vertices at {hex(self.vertex_list_offset)}... ",
@@ -392,7 +392,7 @@ class Chunk(Node):
 
     def _write_texture_coordinates(self, file: TextIO):
         """
-        Given an open file handle or path, write texture coordinates as indicies as they appear in the triangle array
+        Given an open file handle or path, write texture coordinates as indices as they appear in the triangle array
         """
         if self._triangles:
             print(f"\t{len(self.triangles)} texture coordinates")

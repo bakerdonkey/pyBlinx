@@ -88,7 +88,7 @@ class Tree:
     def parse_chunks(
         self,
         node: Node = None,
-        verticies_exist: bool = True,
+        vertices_exist: bool = True,
         triangles_exist: bool = True,
     ):
         """
@@ -101,7 +101,7 @@ class Tree:
         if isinstance(node, Chunk) and node.entry != 0x12:
             # TODO: let's figure out this error handling
             try:
-                # if verticies_exist:
+                # if vertices_exist:
                 #     node.parse_vertices(world=True)
 
                 # if triangles_exist:
@@ -115,13 +115,13 @@ class Tree:
                 node.errored = True
 
         if node.left_child_offset:
-            self.parse_chunks(node.left_child, verticies_exist, triangles_exist)
+            self.parse_chunks(node.left_child, vertices_exist, triangles_exist)
 
         if node.right_child_offset:
-            self.parse_chunks(node.right_child, verticies_exist, triangles_exist)
+            self.parse_chunks(node.right_child, vertices_exist, triangles_exist)
 
     def write(
-        self, section_directory: Path, node: Node = None, seperate_objs: bool = False
+        self, section_directory: Path, node: Node = None, separate_objs: bool = False
     ):
         """
         Write all full chunks in tree. Does not support character chunks
@@ -129,12 +129,12 @@ class Tree:
         if not node:
             node = self.root
 
-        # TODO: all as one file is broken since mesh indexes are ambigious.
+        # TODO: all as one file is broken since mesh indexes are ambiguous.
         # might take some serious work in triangle writing :(
-        seperate_objs = True
+        separate_objs = True
 
         if isinstance(node, Chunk):
-            obj_name = f"{node.name}.obj" if seperate_objs else f"{self.name}.obj"
+            obj_name = f"{node.name}.obj" if separate_objs else f"{self.name}.obj"
             obj_path = section_directory / obj_name
             file_exists = obj_path.exists()
 

@@ -47,6 +47,7 @@ def main():
 
                 models[section] = model
 
+        # TODO: let's make models a list, you should be able to have multiple per section
         for section, offsets in models.items():
             print(
                 f'{section}:\t{hex(offsets["geometry_offset"])}\t{hex(offsets["material_list_offset"])}'
@@ -101,7 +102,7 @@ def run(models, xbe, in_directory, out_directory, action, verbose=False):
             print(f"Building Tree at {hex(geo_offset)}")
             tree.build_tree(tree.root, verbose=verbose)
             if action in ["parse", "extract"]:
-                tree.parse_chunks(verticies_exist=True, triangles_exist=True)
+                tree.parse_chunks(vertices_exist=True, triangles_exist=True)
                 if action == "extract":
                     tree.write(section_directory)
 
@@ -126,14 +127,13 @@ def get_cli_args():
         "--chunk_offset",
         required="--material_list_offset" in sys.argv,
         help="Chunk entry offset (virtual address). Mode must be 'custom'",
-        type=lambda x: int(x, 16),  # input is a hexidecimal
+        type=lambda x: int(x, 16),  # input is a hexadecimal
     )
     parser.add_argument(
         "--material_list_offset",
         help="MaterialList entry offset (virtual address).  Mode must be 'custom'",
         type=lambda x: int(x, 16),
     )
-    parser.add_argument("-to", "--toffset", help="Pointer table offset", type=str)
     parser.add_argument(
         "-v", "--verbose", help="Print verbose output", action="store_true"
     )
@@ -143,12 +143,12 @@ def get_cli_args():
 
 # TODO: make this work!
 def parse_prop_table(
-    xbe, toffset=(PROP_TABLE_OFFSET + DATA_SECTION_RAW_ADDRESS), count=PROP_TABLE_COUNT
+    xbe, count=PROP_TABLE_COUNT
 ):
     """
     WIP: read the prop table and extract the list of models.
     """
-    xbe.seek(toffset)
+    xbe.seek(PROP_TABLE_OFFSET + DATA_SECTION_RAW_ADDRESS)
     models = []
     # models = {}
     section = "DATA"
