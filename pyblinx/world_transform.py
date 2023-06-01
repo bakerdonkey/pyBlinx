@@ -1,58 +1,48 @@
 from math import sin
 from math import cos
 
+from pyblinx.models.vertex import Vertex
 
-def transform(vertex, world):
+
+def transform(vertex: Vertex, world: tuple):
     """
     Transform a vertex array by a world coordinate array.
     """
-    v = vertex
     # v = scale(v, world[6:9])
-    v = rotate(v, world[3:6])
-    v = translate(v, world[0:3])
+    vertex = rotate(vertex, world[3:6])
+    vertex = translate(vertex, world[0:3])
+    return vertex
 
-    return v
 
-
-def translate(vertex, world):
+def translate(vertex: Vertex, world: tuple):
     """
     Translate a vertex by a world array by piecewise adding
     """
-    x = vertex[0] + world[0]
-    y = vertex[1] + world[1]
-    z = vertex[2] + world[2]
-
-    return (x, y, z)
+    x = vertex.x + world[0]
+    y = vertex.y + world[1]
+    z = vertex.z + world[2]
+    return Vertex(x, y, z)
 
 
 # TODO: Use homogenius matrix transforms
-def rotate(vertex, world):
+def rotate(vertex: Vertex, world: tuple):
     """
     Rotate a vertex around its origin by a world array denoting [x, y, z]. Assumes radions.
     """
 
-    x, y, z = vertex[0], vertex[1], vertex[2]
-
-    # q0, q1, q2 = world[0], world[1], world[2]
-
-    # x_prime = ((x*cos(q0))*(x*cos(q1))) + (((y*cos(q0))*(y*sin(q1))*(y*sin(q2))) - ((y*sin(q0))*(y*cos(q2)))) + (((z*cos(q0))*(z*sin(q1))*(z*cos(q2))) + ((z*sin(q0))*(z*sin(q2))))
-    # y_prime = ((x*sin(q0))*(x*cos(q1))) + (((y*sin(q0))*(y*sin(q1))*(y*sin(q2))) + ((y*cos(q0))*(y*cos(q2)))) + (((z*sin(q0))*(z*sin(q1))*(z*cos(q2))) - ((z*cos(q0))*(z*sin(q2))))
-    # z_prime = (-x*sin(q1)) + ((y*cos(q1))*(y*sin(q2))) + ((z*cos(q1))*(z*cos(q2)))
-    # x, y, z = x_prime, y_prime, z_prime
-
     # x axis rotation
     q = world[0]
-    x_prime = x
-    y_prime = y * cos(q) - z * sin(q)
-    z_prime = y * sin(q) + z * cos(q)
-    x, y, z = x_prime, y_prime, z_prime
+    x_prime = vertex.x
+    y_prime = vertex.y * cos(q) - vertex.z * sin(q)
+    z_prime = vertex.y * sin(q) + vertex.z * cos(q)
+    vertex = Vertex(x_prime, y_prime, z_prime)
 
     # y axis rotation
     q = world[1]
-    x_prime = z * sin(q) + x * cos(q)
-    y_prime = y
-    z_prime = z * cos(q) - x * sin(q)
-    x, y, z = x_prime, y_prime, z_prime
+    x_prime = vertex.z * sin(q) + vertex.x * cos(q)
+    y_prime = vertex.y
+    z_prime = vertex.z * cos(q) - vertex.x * sin(q)
+    vertex = Vertex(x_prime, y_prime, z_prime)
 
     # z axis rotation
     #    q = world[0]
@@ -61,15 +51,14 @@ def rotate(vertex, world):
     #    z_prime = z
     #    x, y, z = x_prime, y_prime, z_prime
 
-    return (x, y, z)
+    return vertex
 
 
-def scale(vertex, world):
+def scale(vertex: Vertex, world: tuple):
     """
     Scale a vertex by a world array.
     """
-    x = vertex[0] * world[0]
-    y = vertex[1] * world[1]
-    z = vertex[2] * world[2]
-
-    return (x, y, z)
+    x = vertex.x * world[0]
+    y = vertex.y * world[1]
+    z = vertex.z * world[2]
+    return Vertex(x, y, z)

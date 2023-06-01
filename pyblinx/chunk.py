@@ -1,7 +1,8 @@
 from struct import unpack
-from typing import BinaryIO, TextIO
+from typing import BinaryIO, List, TextIO
 
 from pyblinx.constants import ESCAPE, TEXTURE_MAGIC, TEXTURE_TYPE_SPEC
+from pyblinx.models.vertex import Vertex
 from pyblinx.node import Node
 from pyblinx.address import get_raw_address
 from pyblinx.material_list import MaterialList
@@ -36,7 +37,7 @@ class Chunk(Node):
 
         self.name = "ch_" + self.section + "_" + hex(self.offset)
 
-        self._vertices = None
+        self._vertices: List[Vertex] = None
         self._triangles = None
 
         # Sometimes chunks can't be parsed -- it happens. Do not write errored chunks.
@@ -49,7 +50,7 @@ class Chunk(Node):
         return self.name
 
     @property
-    def vertices(self) -> list:
+    def vertices(self) -> List[Vertex]:
         if not self._vertices:
             return self.parse_vertices()
         return self._vertices
@@ -85,12 +86,12 @@ class Chunk(Node):
             "farray": float_array,  # unknown use
         }
 
-    # TODO: this method could be useful to DRY up some caller code. it should oopulate the instance variables too.
+    # TODO: this method could be useful to DRY up some caller code. it should maybe populate the instance variables too.
     def parse_geometry(self, world: bool = True):
         """
         Parse vetices and triangles in chunk.
         """
-        print(f"Parsing chunk at {self.entry}")
+        print(f"{self.name}: Parsing chunk with entry value {self.entry}")
         v = self.parse_vertices(world=world)
         t = self.parse_triangles()
         return v, t
@@ -108,6 +109,7 @@ class Chunk(Node):
         if material_list and not kwargs.get("ignore_mtllib_line"):
             file.write(f"mtllib {material_list}.mtl\n")
 
+        print(f'{self.name}: Writing chunk to {file.name}')
         file.write(f"o {self.name}\n")
         self._write_vertices(file)
         self._write_texture_coordinates(file)
@@ -117,9 +119,13 @@ class Chunk(Node):
         """
         Reads vertex list from xbe. Returns a list[count], where each element is a tuple[3] denoting xyz.
         """
+        if self._vertices:
+            print(f"\t{self.name}: Vertices already parsed")
+            return self._vertices
+
         if not self.vertex_list_offset:
-            print(f"\t{hex(self.offset)}: This chunk contains no vertices")
-            return
+            print(f"\t{self.name}: This chunk contains no vertices")
+            return []
 
         self.xbe.seek(self.vertex_list_offset)
         self.xbe.seek(6, 1)  # skip 6 unknown bytes
@@ -128,20 +134,21 @@ class Chunk(Node):
         self.xbe.seek(8, 1)  # skip 8 more unkown bytes
 
         print(
-            f"\t{hex(self.offset)}: Parsing {count} vertices at {hex(self.vertex_list_offset)}... ",
+            f"\tParsing {count} vertices at {hex(self.vertex_list_offset)}... ",
             end="",
         )
 
         vertices = []
         for _ in range(count):
-            vertex = list(unpack("fff", self.xbe.read(12)))
+            coordinates = unpack("fff", self.xbe.read(12))
+            self.xbe.seek(4, 1)  # skip 4 unknown bytes
 
+            vertex = Vertex(*coordinates)
             if world:
                 v_local = transform(vertex, self.world_coords)
                 vertex = transform(v_local, self.parent_coords)
 
-            vertices.append(tuple(vertex))
-            self.xbe.seek(4, 1)  # skip 4 unknown bytes
+            vertices.append(vertex)
 
         print("\tDone")
 
@@ -179,7 +186,7 @@ class Chunk(Node):
             previous_material_list_index = 0
             final = False
             while True:
-                print(f"\t\tParsing tripart {j}")
+                print(f"\t\t\tParsing tripart {j}...\t")
                 j += 1
 
                 tripart = self.parse_tripart(
@@ -227,12 +234,11 @@ class Chunk(Node):
 
         # The case where the texture index is not declared, but the tripart is textured. It uses the texture index passed into the method.
         if type_spec == TEXTURE_MAGIC:
-            print(f"\t\t\t\tUsing prev tindex {previous_material_list_index}")
             material_list_index = previous_material_list_index
 
         # The case where the tripart is simple. The next tripart is probed for the escape symbol, but no actual parsing happens.
         elif (type_spec - TEXTURE_TYPE_SPEC) % 0x1000 != 0:
-            print("\t\t\tNon-texture tripart.")
+            print("\t\t\t\tNon-texture tripart.")
             type = "simple"  # Currently unused
 
             tripart_size = unpack("h", f.read(2))[0] * 2
@@ -240,7 +246,7 @@ class Chunk(Node):
             tripart_end = f.tell()
             esc_candidate = f.read(4)
             if esc_candidate == ESCAPE:
-                print("\t\t\t\t ESCAPE SYMBOL FOUND IN SIMPLE TRIPART")
+                print("\t\t\t\tEscape symbol encountered in simple tripart")
                 return {
                     "tripart_data": None,
                     "material_list_index": None,
@@ -248,7 +254,7 @@ class Chunk(Node):
                     "is_final": True,
                 }
             else:
-                print("\t\t\t\tESCAPE SYMBOL NOT FOUND IN SIMPLE TRIPART")
+                print("\t\t\t\tEscape symbol NOT encountered in simple tripart")
                 f.seek(-4, 1)
                 return {
                     "tripart_data": None,
@@ -282,19 +288,23 @@ class Chunk(Node):
         # The case where the next tripart does exist and uses the texture index declared in the current one. This would have been falsely marked positive by
         # the previous check.
         if can_ints[0] == TEXTURE_MAGIC:
-            print("\t\t\tTEXTURE MAGIC NUMBER")
+            print(
+                f"\t\t\t\tMagic number {hex(TEXTURE_MAGIC)} encountered: another tripart exists"
+            )
             escape = False
 
         # The case where the next 4 bytes is the escape symbol, thus terminating triangle parsing after the current tristrip.
         if esc_candidate == ESCAPE:
-            print("\t\t\tESCAPE SYMBOL FOUND")
+            print(
+                f"\t\t\t\tEscape symbol {str(ESCAPE)} encountered: terminating triangle parsing after this strip"
+            )
             escape = True
 
         # The case where the current tristrip is the last in its triangle section but there exists a next triangle section. New triangle sections always
         # start with 0x25XX 0xYYYY where XX is arbitrary (as far as I know) and YYYY is the size of the header. Headers have not been observed to be larger
         # than 0x20 bytes.
         if can_ints[0] >> 0x8 == 0x25 and can_ints[1] < 0x20:
-            print("\t\t\tANOTHER TRIANGLE SECTION EXISTS")
+            print("\t\t\t\tAnother tripart exists")
             final = False
             escape = True
 
@@ -302,14 +312,19 @@ class Chunk(Node):
 
         # Parse the tripart.
         t_length = unpack("h", f.read(2))[0]
+        if t_length > 255:
+            raise ValueError('t_length too long')
+
         for _ in range(t_length):
             strip = []
             s_length = abs(unpack("h", f.read(2))[0])
+            # TODO: more robust handling here
+            if s_length > 255:
+                raise ValueError('s_length too long')
 
             for _ in range(s_length):
-                if (
-                    type == "texture"
-                ):  # type is currently unused and will always be 'texture'.
+                # type is currently unused and will always be 'texture'.
+                if type == "texture":
                     raw_point = list(unpack("hhh", f.read(6)))
                     raw_point[0] += 1  # TODO: clean up
                     raw_point[1] /= 255.0
@@ -335,17 +350,17 @@ class Chunk(Node):
 
     def _write_vertices(self, file: TextIO):
         if self.vertices:
-            print(f"Writing {len(self._vertices)} vertices to {file.name}")
+            print(f"\t{len(self._vertices)} vertices")
         else:
             print("\tNo vertices to write!")
             return
 
         for vertex in self._vertices:
-            file.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
+            file.write(vertex.obj())
 
     def _write_triangles(self, file: TextIO, material_list: MaterialList = None):
         if self.triangles:
-            print(f"Writing {len(self.triangles)} triparts to {file.name}")
+            print(f"\t{len(self.triangles)} triparts")
         else:
             print("\tNo triangles to write!")
             return
@@ -379,9 +394,12 @@ class Chunk(Node):
         """
         Given an open file handle or path, write texture coordinates as indicies as they appear in the triangle array
         """
-        if not self._triangles:
-            print("\tNo texture coordinates found!")
-            return None
+        if self._triangles:
+            print(f"\t{len(self.triangles)} texture coordinates")
+        else:
+            print("\tNo texture coordinates to write!")
+            return
+
 
         # TODO: Clean up
         for tp in self._triangles:

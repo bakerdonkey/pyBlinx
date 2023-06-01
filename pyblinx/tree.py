@@ -35,7 +35,7 @@ class Tree:
 
         if verbose:
             pad = "\t" * level
-            print(f"{pad}{type(node).__name__} {hex(node.entry)} {hex(node.offset)}")
+            print(f"{pad}{type(node).__name__}: {hex(node.offset)} -> {node.entry}")
 
         level += 1
 
@@ -101,15 +101,16 @@ class Tree:
         if isinstance(node, Chunk) and node.entry != 0x12:
             # TODO: let's figure out this error handling
             try:
-                if verticies_exist:
-                    node.parse_vertices(world=True)
+                # if verticies_exist:
+                #     node.parse_vertices(world=True)
 
-                if triangles_exist:
-                    node.parse_triangles()
+                # if triangles_exist:
+                #     node.parse_triangles()
+                node.parse_geometry(world=True)
 
             except Exception as e:
                 print(
-                    f"An error has occured when parsing chunk at {hex(node.offset)}. Error: {str(e)}"
+                    f"Error parsing chunk {node.name}: {str(e)}\n"
                 )
                 node.errored = True
 

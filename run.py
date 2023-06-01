@@ -1,10 +1,10 @@
-import os
-
 from argparse import ArgumentParser
 from pathlib import Path
 from struct import unpack
+import time
+from typing import BinaryIO
 
-from pyblinx.address import get_section_for_address
+from pyblinx.address import get_section_for_address, get_virtual_address
 from pyblinx.constants import (
     DATA_SECTION_RAW_ADDRESS,
     MAP_TABLE_OFFSET,
@@ -82,9 +82,14 @@ def run(models, xbe, in_directory, out_directory, **kwargs):
                 mtl, in_directory / MEDIA_DIRECTORY_NAME
             )
 
+        # tree = Tree(xbe, geo_offset, section, material_list)
+
+        # addr = get_virtual_address(0xf14804, section)
         tree = Tree(xbe, geo_offset, section, material_list)
+        print(f'Building Tree at {hex(geo_offset)}')
         tree.build_tree(tree.root, verbose=verbose)
         tree.parse_chunks(verticies_exist=True, triangles_exist=True)
+        time.sleep(2)
         tree.write(section_directory)
 
 
@@ -144,31 +149,28 @@ def parse_prop_table(
     return models
 
 
-def parse_map_table(
-    xbe, toffset=(MAP_TABLE_OFFSET + DATA_SECTION_RAW_ADDRESS), section=None
-):
+def parse_map_table(xbe: BinaryIO, section: str = None):
     """
     Read the map table and extract a list of models.
     """
-    f = xbe
-    f.seek(toffset)
+    xbe.seek(MAP_TABLE_OFFSET + DATA_SECTION_RAW_ADDRESS)
     maps = [
-        ["MAP11", "MAP12", "MAP13", "MDLB1"],  # round 1 - Time Square
-        ["MAP21", "MAP22", "MAP23", "MDLB2"],  # round 2 - Deja Vu Canals
-        ["MAP31", "MAP32", "MAP33", "MDLB3"],  # round 3 - Hourglass Caves
-        ["MAP41", "MAP42", "MAP43", "MDLB4"],  # round 4 - Forgotten City
-        ["MAP51", "MAP52", "MAP53", "MDLB5"],  # round 5 - Temple of Lost Time
-        ["MAP61", "MAP62", "MAP63", "MDLB6"],  # round 6 - Mine of Precious Moments
-        ["MAP11", "MAP11", "MAP11", "MAP11"],  # unused??
-        ["MAP81", "MAP82", "MAP83", "MDLB8"],  # round 7 - Everwinter
-        ["MAP91", "MAP92", "MAP93", "MDLB9"],  # round 8 - Forge of Hours
-        ["MDLB10", "MDLB102", "MAP11", "MDLB10"],  # final boss, section 3 unused
+        ["MAP11", "MAP12", "MAP13", "MDLB1"],           # round 1 - Time Square
+        ["MAP21", "MAP22", "MAP23", "MDLB2"],           # round 2 - Deja Vu Canals
+        ["MAP31", "MAP32", "MAP33", "MDLB3"],           # round 3 - Hourglass Caves
+        ["MAP41", "MAP42", "MAP43", "MDLB4"],           # round 4 - Forgotten City
+        ["MAP51", "MAP52", "MAP53", "MDLB5"],           # round 5 - Temple of Lost Time
+        ["MAP61", "MAP62", "MAP63", "MDLB6"],           # round 6 - Mine of Precious Moments
+        ["_MAP71", "_MAP72", "_MAP71", "_MDLB7"],       # unused
+        ["MAP81", "MAP82", "MAP83", "MDLB8"],           # round 7 - Everwinter
+        ["MAP91", "MAP92", "MAP93", "MDLB9"],           # round 8 - Forge of Hours
+        ["MDLB10", "MDLB102", "_MDLB103", "_MDLB104"],  # final boss, section 3-4 unused
     ]
 
     models = {}
     for round in maps:
         for map in round:
-            map_addresses = unpack("III", f.read(12))  # what is map_pointers[0]??
+            map_addresses = unpack("III", xbe.read(12))  # what is map_addresses[0]??
             geometry_offset = map_addresses[1]
             material_list_offset = map_addresses[2]
             models[map] = {
