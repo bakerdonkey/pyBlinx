@@ -35,7 +35,7 @@ class Chunk(Node):
             else None
         )
 
-        self.name = "ch_" + self.section + "_" + hex(self.offset)
+        self.name = "ch_" + self.section + "_" + hex(self.virtual_offset)
 
         self._vertices: List[Vertex] = None
         self._triangles = None
@@ -160,9 +160,13 @@ class Chunk(Node):
         """
         Read tripart list from xbe. Returns a list of tuples (tripart, material_list index) as defined in parse_tripart() without escape flags.
         """
+        if self._triangles:
+            print(f"\t{self.name}: Triangles already parsed")
+            return self.triangles
+    
         if not self.triangle_list_offset:
-            print(f"\t{hex(self.offset)}: This chunk contains no triangles")
-            return
+            print(f"\t{hex(self.raw_offset)}: This chunk contains no triangles")
+            return []
 
         self.xbe.seek(self.triangle_list_offset)
         print(f"\tParsing triangles at {hex(self.triangle_list_offset)}... ")

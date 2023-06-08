@@ -15,7 +15,8 @@ class Node:
     ):
         self.xbe = xbe
         self.section = section
-        self.offset = get_raw_address(entry_offset, self.section)
+        self.virtual_offset = entry_offset
+        self.raw_offset = get_raw_address(entry_offset, self.section)
         self.material_list = material_list
 
         header = self.parse_header()
@@ -39,7 +40,7 @@ class Node:
         Parse header stub and store its data.
         """
         f = self.xbe
-        f.seek(self.offset)
+        f.seek(self.raw_offset)
         entry = unpack("i", f.read(4))[0]
 
         geometry_header = unpack("i", f.read(4))[0]

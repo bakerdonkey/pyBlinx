@@ -31,8 +31,6 @@ def get_raw_address(virtual_address: int, section: str) -> int:
     """
     Converts a virtual address to a raw address for a given section.
     """
-    # TODO: remove `addresses` param when global access to `section_address_mapping`` is available.
-    # `addresses` is never expected to be anything different after all!
     base_addresses = section_address_map.get(section)
     if not base_addresses:
         raise AddressError(

@@ -35,7 +35,7 @@ class Tree:
 
         if verbose:
             pad = "\t" * level
-            print(f"{pad}{type(node).__name__}: {hex(node.offset)} -> {node.entry}")
+            print(f"{pad}{type(node).__name__}: {hex(node.raw_offset)} -> {node.entry}")
 
         level += 1
 

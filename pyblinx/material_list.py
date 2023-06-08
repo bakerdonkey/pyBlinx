@@ -9,10 +9,11 @@ TEXTURE_NAME_LIST_ITEM_SIZE = 32
 class MaterialList:
     def __init__(self, xbe: BinaryIO, entry_offset: int, section: str):
         self.xbe = xbe
-        self.offset = get_raw_address(entry_offset, section)
+        self.virtual_offset = entry_offset
+        self.raw_offset = get_raw_address(entry_offset, section)
         self.section = section
 
-        self.name = "mtl_" + self.section + "_" + hex(self.offset)
+        self.name = "mtl_" + self.section + "_" + hex(self.virtual_offset)
 
         self._texture_names = None
         self._material_names = None
@@ -40,13 +41,16 @@ class MaterialList:
         """
         Parse texture names for a MaterialList.
         """
+        if self.is_parsed:
+            return self._texture_names
+
         header = self._parse_texture_names_header()
-        texture_names_offset = get_raw_address(
+        texture_names_raw_offset = get_raw_address(
             header["texture_names_offset"], self.section
         )
         texture_names_length = header["texture_names_length"]
 
-        self.xbe.seek(texture_names_offset)
+        self.xbe.seek(texture_names_raw_offset)
 
         texture_names = []
         for _ in range(texture_names_length):
@@ -64,7 +68,7 @@ class MaterialList:
         self._texture_names = texture_names
         return texture_names
 
-    # TODO: parse and write game-defined materials
+    # TODO: parse and write game-defined materials (Kd and Ks)
     def write_material_library(self, file: TextIO, media_path: Path):
         """
         Create a .mat material library with dummy Kd and Ks values.
@@ -83,15 +87,15 @@ class MaterialList:
         """
         Read header and return its data.
         """
-        self.xbe.seek(self.offset)
+        self.xbe.seek(self.raw_offset)
 
-        texture_names_offset_pointer = unpack("i", self.xbe.read(4))[0]
+        texture_names_offset = unpack("i", self.xbe.read(4))[0]
         texture_names_length = unpack("i", self.xbe.read(4))[0]
 
         return {
-            "texture_names_offset": texture_names_offset_pointer,
+            "texture_names_offset": texture_names_offset,
             "texture_names_length": texture_names_length,
         }
 
     def _get_material_names(self):
-        return [hex(self.offset) + string for string in self.texture_names]
+        return [hex(self.raw_offset) + string for string in self.texture_names]
