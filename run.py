@@ -18,6 +18,7 @@ from pyblinx.helpers import tk_load_dir
 from pyblinx.material_list import MaterialList
 from pyblinx.tree import Tree
 
+
 def main():
     cli_args = get_cli_args()
 
@@ -33,24 +34,25 @@ def main():
 
         elif cli_args.mode == "prop":
             models = parse_prop_table(xbe)
+            out_directory = get_output_subdirectory(out_directory, "props")
 
         else:
-            models = {}
+            models = []
             if cli_args.chunk_offset:
                 section = get_section_for_address(cli_args.chunk_offset)
                 model = {
+                    "section": section,
                     "geometry_offset": cli_args.chunk_offset,
-                    "material_list_offset": None
+                    "material_list_offset": None,
                 }
                 if cli_args.material_list_offset:
                     model["material_list_offset"] = cli_args.material_list_offset
 
-                models[section] = model
+                models.append(model)
 
-        # TODO: let's make models a list, you should be able to have multiple per section
-        for section, offsets in models.items():
+        for model in models:
             print(
-                f'{section}:\t{hex(offsets["geometry_offset"])}\t{hex(offsets["material_list_offset"])}'
+                f'{model["section"]}:\t{hex(model["geometry_offset"])}\t{hex(model["material_list_offset"])}'
             )
         print("--------------------------------------------------")
         run(
@@ -63,25 +65,30 @@ def main():
         )
 
 
+def get_output_subdirectory(output_directory: Path, name: str):
+    subdirectory = Path(f"{output_directory}/{name}")
+
+    # delete all data if directory exists.
+    if subdirectory.exists():
+        for file in subdirectory.iterdir():
+            file.unlink()
+        subdirectory.rmdir()
+    
+    subdirectory.mkdir(parents=True)
+    return subdirectory
+
 def run(models, xbe, in_directory, out_directory, action, verbose=False):
     i = 0
-    for section, model in models.items():
-        geo_offset = model["geometry_offset"]
+    for model in models:
+        section = model["section"]
+        geometry_offset = model["geometry_offset"]
         material_list_offset = model["material_list_offset"]
         print(
-            f"Model {i} in {section}:\tGeometry offset -- {hex(geo_offset)}\tMaterialList offset -- {hex(material_list_offset)}"
+            f"Model {i}: {section}:\tGeometry virtual offset -- {hex(geometry_offset)}\tMaterialList virtual offset -- {hex(material_list_offset)}"
         )
         i += 1
 
-        section_directory = Path(f"{out_directory}/{section}")
-
-        # delete all data if directory exists.
-        if section_directory.exists():
-            for file in section_directory.iterdir():
-                file.unlink()
-            section_directory.rmdir()
-
-        section_directory.mkdir(parents=True)
+        section_directory = get_output_subdirectory(out_directory, section)
 
         if material_list_offset:
             material_list = MaterialList(xbe, material_list_offset, section)
@@ -96,10 +103,10 @@ def run(models, xbe, in_directory, out_directory, action, verbose=False):
         else:
             material_list = None
 
-        tree = Tree(xbe, geo_offset, section, material_list)
+        tree = Tree(xbe, geometry_offset, section, material_list)
 
         if action in ["peek", "parse", "extract"]:
-            print(f"Building Tree at {hex(geo_offset)}")
+            print(f"Building Tree at {hex(geometry_offset)}")
             tree.build_tree(tree.root, verbose=verbose)
             if action in ["parse", "extract"]:
                 tree.parse_chunks(vertices_exist=True, triangles_exist=True)
@@ -122,7 +129,12 @@ def get_cli_args():
     )
     parser.add_argument("-d", "--directory", help="Path to Blinx directory", type=str)
     parser.add_argument("-o", "--out", help="Path to output directory", type=str)
-    parser.add_argument("-s", "--map_section", help="Section name containing map geometry. Mode must be 'map'", type=str)
+    parser.add_argument(
+        "-s",
+        "--map_section",
+        help="Section name containing map geometry. Mode must be 'map'",
+        type=str,
+    )
     parser.add_argument(
         "--chunk_offset",
         required="--material_list_offset" in sys.argv,
@@ -142,9 +154,7 @@ def get_cli_args():
 
 
 # TODO: make this work!
-def parse_prop_table(
-    xbe, count=PROP_TABLE_COUNT
-):
+def parse_prop_table(xbe, count=PROP_TABLE_COUNT):
     """
     WIP: read the prop table and extract the list of models.
     """
@@ -153,21 +163,22 @@ def parse_prop_table(
     # models = {}
     section = "DATA"
     for _ in range(count):
-        m = list(unpack("II", xbe.read(8)))
-        section = get_section_for_address(m[0])
-        m.append(section)
-        m = tuple(m)
-        if m[0] != 0 and m[1] != 0 and m[2] != "MDLEN":
-            models.append(m)
-        xbe.seek(72, 1)
-        print(m)
+        prop_addresses = unpack("II", xbe.read(8))
+        geometry_offset = prop_addresses[0]
+        material_list_offset = prop_addresses[1]
+        section = get_section_for_address(geometry_offset)
+        if (
+            section != "MDLEN" and geometry_offset != 0 and material_list_offset != 0
+        ):  # MDLEN props might be character models??
+            model = {
+                "section": section,
+                "geometry_offset": geometry_offset,
+                "material_list_offset": material_list_offset,
+            }
+            print(f"{model['section']}\t{hex(model['geometry_offset'])}\t{hex(model['material_list_offset'])}")
+            models.append(model)
 
-        # prop_addresses = unpack("II", xbe.read(8))
-        # geometry_offset = prop_addresses[0]
-        # material_list_offset = prop_addresses[1]
-        # section = find_section(geometry_offset)
-        # if section != 'MDLEN' and geometry_offset not in [0, 1] and material_list_offset not in [0, 1]: # why not MDLEN??
-        #     models[section] = {'geometry_offset': geometry_offset, 'material_list_offset': material_list_offset}
+        xbe.seek(72, 1) # i wonder what data we're skipping here
 
     return models
 
@@ -190,19 +201,22 @@ def parse_map_table(xbe: BinaryIO, map_section: str = None):
         ["MDLB10", "MDLB102", "_MDLB103", "_MDLB104"],  # final boss, section 3-4 unused
     ]
 
-    models = {}
+    models = []
     for round in maps:
         for map in round:
             map_addresses = unpack("III", xbe.read(12))  # what is map_addresses[0]??
             geometry_offset = map_addresses[1]
             material_list_offset = map_addresses[2]
-            models[map] = {
-                "geometry_offset": geometry_offset,
-                "material_list_offset": material_list_offset,
-            }
+            models.append(
+                {
+                    "section": map,
+                    "geometry_offset": geometry_offset,
+                    "material_list_offset": material_list_offset,
+                }
+            )
 
     if map_section:
-        return {map_section: models[map_section]}
+        models = [model for model in models if model["section"] == map_section]
 
     return models
 
