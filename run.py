@@ -91,15 +91,18 @@ def run(models, xbe, in_directory, out_directory, action, verbose=False):
         section_directory = get_output_subdirectory(out_directory, section)
 
         if material_list_offset:
-            material_list = MaterialList(xbe, material_list_offset, section)
-            material_list.parse_texture_names()
+            try:
+                material_list = MaterialList(xbe, material_list_offset, section)
+                material_list.parse_texture_names()
+                if action == "extract":
+                    mtl_path = section_directory / f"{material_list.name}.mtl"
+                    with mtl_path.open("w+") as mtl:
+                        material_list.write_material_library(
+                            mtl, in_directory / MEDIA_DIRECTORY_NAME
+                        )
+            except Exception:
+                print(f"Error parsing MaterialList {hex(material_list_offset)}")
 
-            if action == "extract":
-                mtl_path = section_directory / f"{material_list.name}.mtl"
-                with mtl_path.open("w+") as mtl:
-                    material_list.write_material_library(
-                        mtl, in_directory / MEDIA_DIRECTORY_NAME
-                    )
         else:
             material_list = None
 
@@ -131,7 +134,7 @@ def get_cli_args():
     parser.add_argument("-o", "--out", help="Path to output directory", type=str)
     parser.add_argument(
         "-s",
-        "--map_section",
+        "--map-section",
         help="Section name containing map geometry. Mode must be 'map'",
         type=str,
     )

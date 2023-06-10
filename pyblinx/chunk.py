@@ -24,12 +24,14 @@ class Chunk(Node):
         )
 
         geometry_header = self.parse_geometry_header()
-        self.vertex_list_offset = (
+        self.vertex_list_virtual_offset = geometry_header.get("vertex_list_offset")
+        self.vertex_list_raw_offset = (
             get_raw_address(geometry_header["vertex_list_offset"], self.section)
             if geometry_header["vertex_list_offset"]
             else None
         )
-        self.triangle_list_offset = (
+        self.triangle_list_virtual_offset = geometry_header.get("triangle_list_offset")
+        self.triangle_list_raw_offset = (
             get_raw_address(geometry_header["triangle_list_offset"], self.section)
             if geometry_header["triangle_list_offset"]
             else None
@@ -87,13 +89,14 @@ class Chunk(Node):
         }
 
     # TODO: this method could be useful to DRY up some caller code. it should maybe populate the instance variables too.
-    def parse_geometry(self, world: bool = True):
+    def parse_geometry(self, world: bool = True, verbose: bool = False):
         """
         Parse vertices and triangles in chunk.
         """
-        print(f"{self.name}: Parsing chunk with entry value {self.entry}")
-        v = self.parse_vertices(world=world)
-        t = self.parse_triangles()
+        if verbose:
+            print(f"{self.name}: Parsing chunk")
+        v = self.parse_vertices(world=world, verbose=verbose)
+        t = self.parse_triangles(verbose=verbose)
         return v, t
 
     def write_obj(self, file: TextIO, **kwargs):
@@ -115,28 +118,31 @@ class Chunk(Node):
         self._write_texture_coordinates(file)
         self._write_triangles(file)
 
-    def parse_vertices(self, world: bool = True) -> list:
+    def parse_vertices(self, world: bool = True, verbose: bool = False) -> list:
         """
         Reads vertex list from xbe. Returns a list[count], where each element is a tuple[3] denoting xyz.
         """
         if self._vertices:
-            print(f"\t{self.name}: Vertices already parsed")
+            if verbose:
+                print(f"\t{self.name}: Vertices already parsed")
             return self._vertices
 
-        if not self.vertex_list_offset:
-            print(f"\t{self.name}: This chunk contains no vertices")
+        if not self.vertex_list_raw_offset:
+            if verbose:
+                print(f"\t{self.name}: This chunk contains no vertices")
             return []
 
-        self.xbe.seek(self.vertex_list_offset)
+        self.xbe.seek(self.vertex_list_raw_offset)
         self.xbe.seek(6, 1)  # skip 6 unknown bytes
 
         count = unpack("h", self.xbe.read(2))[0]
         self.xbe.seek(8, 1)  # skip 8 more unknown bytes
 
-        print(
-            f"\tParsing {count} vertices at {hex(self.vertex_list_offset)}... ",
-            end="",
-        )
+        if verbose:
+            print(
+                f"\tParsing {count} vertices at {hex(self.vertex_list_virtual_offset)} ({hex(self.vertex_list_raw_offset)})... ",
+                end="",
+            )
 
         vertices = []
         for _ in range(count):
@@ -150,26 +156,30 @@ class Chunk(Node):
 
             vertices.append(vertex)
 
-        print("\tDone")
+        if verbose:
+            print("\tDone")
 
         self._vertices = vertices
         return vertices
 
     # TODO: refactor me!! this function is a mess. maybe make actual objects for triparts, tristrips, etc.
-    def parse_triangles(self) -> list:
+    def parse_triangles(self, verbose: bool = True) -> list:
         """
         Read tripart list from xbe. Returns a list of tuples (tripart, material_list index) as defined in parse_tripart() without escape flags.
         """
         if self._triangles:
-            print(f"\t{self.name}: Triangles already parsed")
+            if verbose:
+                print(f"\t{self.name}: Triangles already parsed")
             return self.triangles
     
-        if not self.triangle_list_offset:
-            print(f"\t{hex(self.raw_offset)}: This chunk contains no triangles")
+        if not self.triangle_list_raw_offset:
+            if verbose:
+                print(f"\t{hex(self.raw_offset)}: This chunk contains no triangles")
             return []
 
-        self.xbe.seek(self.triangle_list_offset)
-        print(f"\tParsing triangles at {hex(self.triangle_list_offset)}... ")
+        self.xbe.seek(self.triangle_list_raw_offset)
+        if verbose:
+            print(f"\tParsing triangles at {hex(self.triangle_list_virtual_offset)} ({hex(self.vertex_list_raw_offset)})... ")
 
         # Hacky fix around unknown value at 0xbc58 in MDLEN. Probably others like it.
         if unpack("i", self.xbe.read(4))[0] > 50:
@@ -184,17 +194,20 @@ class Chunk(Node):
         i = 0
         while True:
             # TODO: what is a triangle section?
-            print(f"\tParsing triangle section {i}")
+            if verbose:
+                print(f"\tParsing triangle section {i}")
+
             i += 1
             j = 0
             previous_material_list_index = 0
             final = False
             while True:
-                print(f"\t\t\tParsing tripart {j}...\t")
+                if verbose:
+                    print(f"\t\t\tParsing tripart {j}...\t")
                 j += 1
 
                 tripart = self.parse_tripart(
-                    previous_material_list_index=previous_material_list_index
+                    previous_material_list_index=previous_material_list_index, verbose=verbose
                 )
 
                 if tripart["tripart_data"] and tripart["material_list_index"]:
@@ -211,14 +224,16 @@ class Chunk(Node):
 
             if final:  # FIXME: handle case where tripart = None
                 break
+        
+        if verbose:
+            print("\tDone\n")
 
-        print("\tDone\n")
         self._triangles = triparts
         return triparts
 
     # TODO: make "type" an enum
     def parse_tripart(
-        self, type: str = "texture", previous_material_list_index: int = 0
+        self, type: str = "texture", previous_material_list_index: int = 0, verbose: bool = False
     ) -> dict:
         """
         Reads tripart. Returns tuple (tripart, material_list index, last, final) where tripart is a list of tuples (vertex index, tex_x, tex_y),
@@ -242,7 +257,8 @@ class Chunk(Node):
 
         # The case where the tripart is simple. The next tripart is probed for the escape symbol, but no actual parsing happens.
         elif (type_spec - TEXTURE_TYPE_SPEC) % 0x1000 != 0:
-            print("\t\t\t\tNon-texture tripart.")
+            if verbose:
+                print("\t\t\t\tNon-texture tripart.")
             type = "simple"  # Currently unused
 
             tripart_size = unpack("h", f.read(2))[0] * 2
@@ -250,7 +266,8 @@ class Chunk(Node):
             tripart_end = f.tell()
             esc_candidate = f.read(4)
             if esc_candidate == ESCAPE:
-                print("\t\t\t\tEscape symbol encountered in simple tripart")
+                if verbose:
+                    print("\t\t\t\tEscape symbol encountered in simple tripart")
                 return {
                     "tripart_data": None,
                     "material_list_index": None,
@@ -258,7 +275,8 @@ class Chunk(Node):
                     "is_final": True,
                 }
             else:
-                print("\t\t\t\tEscape symbol NOT encountered in simple tripart")
+                if verbose:
+                    print("\t\t\t\tEscape symbol NOT encountered in simple tripart")
                 f.seek(-4, 1)
                 return {
                     "tripart_data": None,
@@ -292,23 +310,26 @@ class Chunk(Node):
         # The case where the next tripart does exist and uses the texture index declared in the current one. This would have been falsely marked positive by
         # the previous check.
         if can_ints[0] == TEXTURE_MAGIC:
-            print(
-                f"\t\t\t\tMagic number {hex(TEXTURE_MAGIC)} encountered: another tripart exists"
-            )
+            if verbose:
+                print(
+                    f"\t\t\t\tMagic number {hex(TEXTURE_MAGIC)} encountered: another tripart exists"
+                )
             escape = False
 
         # The case where the next 4 bytes is the escape symbol, thus terminating triangle parsing after the current tristrip.
         if esc_candidate == ESCAPE:
-            print(
-                f"\t\t\t\tEscape symbol {str(ESCAPE)} encountered: terminating triangle parsing after this strip"
-            )
+            if verbose:
+                print(
+                    f"\t\t\t\tEscape symbol {str(ESCAPE)} encountered: terminating triangle parsing after this strip"
+                )
             escape = True
 
         # The case where the current tristrip is the last in its triangle section but there exists a next triangle section. New triangle sections always
         # start with 0x25XX 0xYYYY where XX is arbitrary (as far as I know) and YYYY is the size of the header. Headers have not been observed to be larger
         # than 0x20 bytes.
         if can_ints[0] >> 0x8 == 0x25 and can_ints[1] < 0x20:
-            print("\t\t\t\tAnother tripart exists")
+            if verbose:
+                print("\t\t\t\tAnother tripart exists")
             final = False
             escape = True
 

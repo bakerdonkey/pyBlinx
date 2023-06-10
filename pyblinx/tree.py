@@ -90,6 +90,7 @@ class Tree:
         node: Node = None,
         vertices_exist: bool = True,
         triangles_exist: bool = True,
+        verbose: bool = False
     ):
         """
         Recurse through tree and parse all chunks. Nodes are not parsed.
@@ -101,12 +102,7 @@ class Tree:
         if isinstance(node, Chunk) and node.entry != 0x12:
             # TODO: let's figure out this error handling
             try:
-                # if vertices_exist:
-                #     node.parse_vertices(world=True)
-
-                # if triangles_exist:
-                #     node.parse_triangles()
-                node.parse_geometry(world=True)
+                node.parse_geometry(world=True, verbose=verbose)
 
             except Exception as e:
                 print(
