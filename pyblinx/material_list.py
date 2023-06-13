@@ -69,19 +69,18 @@ class MaterialList:
         return texture_names
 
     # TODO: parse and write game-defined materials (Kd and Ks)
-    def write_material_library(self, file: TextIO, media_path: Path):
+    def write_material_library(self, file: TextIO, media_path: str):
         """
         Create a .mat material library with dummy Kd and Ks values.
         """
-        paths = [media_path / f"{string}.dds" for string in self.texture_names]
+        paths = [f"{media_path}/{name}.dds" for name in self.texture_names]
         materials = zip(self.material_names, paths)
 
         for material in materials:
-            absolute_path = str(material[1].resolve())
             file.write(f"newmtl {material[0]}\n")
             file.write("Kd 0.8 0.8 0.8\n")
             file.write("Ks 0.0 0.0 0.0\n")
-            file.write(f"map_Kd {absolute_path}\n\n")
+            file.write(f"map_Kd {material[1]}\n\n")
 
     def _parse_texture_names_header(self):
         """

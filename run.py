@@ -1,8 +1,9 @@
+import sys
+
 from argparse import ArgumentParser
 from pathlib import Path
 from struct import unpack
-import sys
-import time
+from os.path import relpath
 from typing import BinaryIO
 
 from pyblinx.address import get_section_for_address
@@ -73,9 +74,10 @@ def get_output_subdirectory(output_directory: Path, name: str):
         for file in subdirectory.iterdir():
             file.unlink()
         subdirectory.rmdir()
-    
+
     subdirectory.mkdir(parents=True)
     return subdirectory
+
 
 def run(models, xbe, in_directory, out_directory, action, verbose=False):
     i = 0
@@ -95,10 +97,14 @@ def run(models, xbe, in_directory, out_directory, action, verbose=False):
                 material_list = MaterialList(xbe, material_list_offset, section)
                 material_list.parse_texture_names()
                 if action == "extract":
-                    mtl_path = section_directory / f"{material_list.name}.mtl"
+                    mtl_path: Path = section_directory / f"{material_list.name}.mtl"
+                    media_dir_path: Path = in_directory / MEDIA_DIRECTORY_NAME
                     with mtl_path.open("w+") as mtl:
                         material_list.write_material_library(
-                            mtl, in_directory / MEDIA_DIRECTORY_NAME
+                            mtl,
+                            relpath(
+                                media_dir_path.resolve(), section_directory.resolve()
+                            ),
                         )
             except Exception:
                 print(f"Error parsing MaterialList {hex(material_list_offset)}")
@@ -139,13 +145,13 @@ def get_cli_args():
         type=str,
     )
     parser.add_argument(
-        "--chunk_offset",
+        "--chunk-offset",
         required="--material_list_offset" in sys.argv,
         help="Chunk entry offset (virtual address). Mode must be 'custom'",
         type=lambda x: int(x, 16),  # input is a hexadecimal
     )
     parser.add_argument(
-        "--material_list_offset",
+        "--material-list-offset",
         help="MaterialList entry offset (virtual address).  Mode must be 'custom'",
         type=lambda x: int(x, 16),
     )
@@ -178,10 +184,12 @@ def parse_prop_table(xbe, count=PROP_TABLE_COUNT):
                 "geometry_offset": geometry_offset,
                 "material_list_offset": material_list_offset,
             }
-            print(f"{model['section']}\t{hex(model['geometry_offset'])}\t{hex(model['material_list_offset'])}")
+            print(
+                f"{model['section']}\t{hex(model['geometry_offset'])}\t{hex(model['material_list_offset'])}"
+            )
             models.append(model)
 
-        xbe.seek(72, 1) # i wonder what data we're skipping here
+        xbe.seek(72, 1)  # i wonder what data we're skipping here
 
     return models
 
@@ -198,7 +206,7 @@ def parse_map_table(xbe: BinaryIO, map_section: str = None):
         ["MAP41", "MAP42", "MAP43", "MDLB4"],  # round 4 - Temple of Lost Time
         ["MAP51", "MAP52", "MAP53", "MDLB5"],  # round 5 - Forgotten City
         ["MAP61", "MAP62", "MAP63", "MDLB6"],  # round 6 - Mine of Precious Moments
-        ["_MAP71", "_MAP72", "_MAP71", "_MDLB7"],  # unused
+        ["_MAP71", "_MAP72", "_MAP73", "_MDLB7"],  # unused
         ["MAP81", "MAP82", "MAP83", "MDLB8"],  # round 7 - Everwinter
         ["MAP91", "MAP92", "MAP93", "MDLB9"],  # round 8 - Forge of Hours
         ["MDLB10", "MDLB102", "_MDLB103", "_MDLB104"],  # final boss, section 3-4 unused
