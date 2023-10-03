@@ -15,7 +15,7 @@ from pyblinx.constants import (
     PROP_TABLE_OFFSET,
     XBE_FILE_NAME,
 )
-from pyblinx.helpers import tk_load_dir
+from pyblinx.helpers import clean_out_directory, tk_load_dir
 from pyblinx.material_list import MaterialList
 from pyblinx.tree import Tree
 
@@ -66,16 +66,14 @@ def main():
         )
 
 
-def get_output_subdirectory(output_directory: Path, name: str):
+def get_output_subdirectory(output_directory: Path, name: str, clean: bool = True):
     subdirectory = Path(f"{output_directory}/{name}")
+    if clean:
+        clean_out_directory(subdirectory)
+    
+    if not subdirectory.exists():
+        subdirectory.mkdir(parents=True)
 
-    # delete all data if directory exists.
-    if subdirectory.exists():
-        for file in subdirectory.iterdir():
-            file.unlink()
-        subdirectory.rmdir()
-
-    subdirectory.mkdir(parents=True)
     return subdirectory
 
 
@@ -90,7 +88,7 @@ def run(models, xbe, in_directory, out_directory, action, verbose=False):
         )
         i += 1
 
-        section_directory = get_output_subdirectory(out_directory, section)
+        section_directory = get_output_subdirectory(out_directory, section, clean=(i == 0))
 
         if material_list_offset:
             try:
@@ -121,7 +119,8 @@ def run(models, xbe, in_directory, out_directory, action, verbose=False):
                 tree.parse_chunks(vertices_exist=True, triangles_exist=True)
                 if action == "extract":
                     tree.write(section_directory)
-
+        
+        input('continue...')
 
 def get_cli_args():
     parser = ArgumentParser()

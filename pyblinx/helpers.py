@@ -16,3 +16,13 @@ def tk_load_dir(dir_type: str):
         print("You must select a folder or provide a path via CLI args")
         exit(1)
     return Path(in_path)
+
+
+def clean_out_directory(directory: Path):
+    if directory.exists():
+        for item in directory.iterdir():
+            if item.is_dir():
+                clean_out_directory(item)
+            else:
+                item.unlink()
+        directory.rmdir()
