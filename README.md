@@ -1,16 +1,21 @@
 # pyBlinx
-A tool for extracting 3d assets from BLiNX: The Time Sweeper. Information on patterns and format is available in `./docs`, which will be updated as research progresses. Requires Python 3.5+.
+A tool for extracting 3d assets from BLiNX: The Time Sweeper. Information on patterns and format is available in `./docs`, which will be updated as research progresses.
 
-This tool is still in early development, and this document may become outdated as the interface is designed and implemented. Contact me directly if you need any help!
+This tool is still in early development, contact me directly if you need any help!
 
 ## Getting Started
+Dependencies are managed through pipenv. I recommend using pyenv to manage environment versions.
+```
+pip install pipenv
+```
+
 To extract an asset, you will need:
-- NTSC-U, "black box" (not Platinum Hits) copy of BLiNX: The Time Sweeper (MS-019 v1.05)
+- NTSC-U, "black box" (not Platinum Hits) copy of BLiNX: The Time Sweeper (MS-019 v1.05) default.xbe file
 - The object index of the model you wish to extract
 
 ## Usage
 ```
-python run.py [action] [mode]
+pipenv run python run.py [action] [mode]
 ```
 All geometry is stored in a Tree structure, composed of Nodes, some of which are Chunks. pyBlinx can read the structure of these Trees, parse their geometry, and write it out to .obj files. This behavior is driven by the `action` argument:
 - `peek` reads the tree (only for debug)
